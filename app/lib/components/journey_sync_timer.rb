@@ -1,0 +1,2 @@
+class JourneySyncTimer
+end

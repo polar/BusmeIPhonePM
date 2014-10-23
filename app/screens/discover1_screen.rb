@@ -1,0 +1,2 @@
+class Discover1Screen
+end

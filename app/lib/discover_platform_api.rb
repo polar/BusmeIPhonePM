@@ -1,0 +1,2 @@
+class DiscoverPlatformApi
+end

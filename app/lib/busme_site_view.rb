@@ -1,0 +1,2 @@
+class BusmeSiteView
+end

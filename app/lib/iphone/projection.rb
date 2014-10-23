@@ -1,0 +1,2 @@
+class Projection
+end
