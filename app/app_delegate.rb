@@ -1,4 +1,4 @@
-
+motion_require "json/pure"
 class AppDelegate < PM::Delegate
 
   status_bar true, animation: :none
@@ -22,7 +22,7 @@ class AppDelegate < PM::Delegate
     self.eventsController = IPhone::EventsController.new(delegate: self)
 
 
-    self.mainController = Platform::MainController.new
+    self.mainController = Platform::MainController.new(directory: File.join("Library", "Caches", "com.busme"))
     eventsController.register(mainController)
     mainController.uiEvents.registerForEvent("Main:Discover:Init:return", self)
     mainController.uiEvents.registerForEvent("Main:Master:Init:return", self)
@@ -33,6 +33,7 @@ class AppDelegate < PM::Delegate
     alertView = showLookingDialog
     mainController.bgEvents.postEvent("Main:Discover:init",
            Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
+   # puts "#{::JSON.generate(['hello', 'world'])}"
   end
 
   def showLookingDialog
@@ -78,7 +79,7 @@ class AppDelegate < PM::Delegate
         masterController = evd.return
         eventsController.register(masterController.api)
         discoverScreen.close
-        self.busmeMapScreen = BusmeMapScreen.newScreen(masterController: masterController, nav_bar: true)
+        self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
         open busmeMapScreen
         alertView = showMasterDialog(masterController.master)
         eventData = Platform::MasterEventData.new(:uiData => alertView)

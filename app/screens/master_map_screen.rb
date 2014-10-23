@@ -17,15 +17,31 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def after_init
+    self.title = masterController.master.title
     masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
     masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
     setMaster(masterController.master)
+    initNavBarActivityItem
+    initActivityDialog(masterController.master)
+
+    map.on_tap do
+      puts "Store master"
+      masterController.storeMaster
+    end
   end
 
+  attr_accessor :activityIndicator
+
+  def initNavBarActivityItem
+    self.activityIndicator =  UIActivityIndicatorView.gray
+    activityIndicator.hidesWhenStopped = true
+    activityView = UIBarButtonItem.alloc.initWithCustomView(activityIndicator)
+    set_nav_bar_button :right, button: activityView
+  end
 
   attr_accessor :alertView
 
-  def showLookingDialog(master)
+  def initActivityDialog(master)
     self.alertView = UIAlertView.alloc.initWithTitle("Welcome to #{master.title}",
                                                 message: nil,
                                                 delegate:nil,
@@ -34,14 +50,15 @@ class MasterMapScreen < ProMotion::MapScreen
     indicator = UIActivityIndicatorView.gray
     indicator.startAnimating
     alertView.setValue(indicator, forKey: "accessoryView")
-    alertView.show
     alertView
   end
 
   def onProgress(eventData)
     case eventData.action
       when P_BEGIN
+        alertView.show if eventData.isForced
         alertView.message = "Contacting Server"
+        activityIndicator.startAnimating
       when P_SYNC_START
         alertView.message = "Syncing"
       when P_SYNC_END
@@ -57,6 +74,7 @@ class MasterMapScreen < ProMotion::MapScreen
       when P_DONE
         alertView.message = "DONE"
         alertView.dismissWithClickedButtonIndex(0, animated: true)
+        activityIndicator.stopAnimating
       else
     end
   end
@@ -64,7 +82,6 @@ class MasterMapScreen < ProMotion::MapScreen
   def doSync(forced)
     evd = Platform::JourneySyncEventData.new(isForced: forced)
     masterController.api.bgEvents.postEvent("JourneySync", evd)
-    showLookingDialog(masterController.master) if forced
   end
 
   def onBuspassEvent(event)
