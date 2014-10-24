@@ -1,6 +1,5 @@
-GIT
-  remote: https://github.com/polar/busme-iphone-rubylib.git
-  revision: 4dc5c94f8707cb73075d63a9ad3a55ba365c85b5
+PATH
+  remote: /Users/polar/src/busme-iphone-rubylib
   specs:
     busme-iphone-rubylib (0.0.1)
       httpclient (~> 2.1)

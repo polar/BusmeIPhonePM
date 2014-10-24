@@ -6,8 +6,8 @@ gem "ProMotion" #, github: "clearsightstudio/ProMotion", branch: "pm2"
 gem "sugarcube", "~> 1.6.1", require: ["sugarcube-all", "sugarcube-color", "sugarcube-uikit", "sugarcube-gestures"]
 gem "ProMotion-map"
 gem 'busme-iphone-rubylib', :require => "busme/motion",
-              #, :path => "/Users/polar/src/busme-iphone-rubylib"
-              :git => "https://github.com/polar/busme-iphone-rubylib.git"
+              :path => "/Users/polar/src/busme-iphone-rubylib"
+              #:git => "https://github.com/polar/busme-iphone-rubylib.git"
 gem 'afmotion'
 #gem 'bubble-wrap'
 #gem "motion-yaml"

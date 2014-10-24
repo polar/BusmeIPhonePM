@@ -22,7 +22,7 @@ class AppDelegate < PM::Delegate
     self.eventsController = IPhone::EventsController.new(delegate: self)
 
 
-    self.mainController = Platform::MainController.new(directory: File.join("Library", "Caches", "com.busme"))
+    self.mainController = ::MainController.new(directory: File.join("Library", "Caches", "com.busme"))
     eventsController.register(mainController)
     mainController.uiEvents.registerForEvent("Main:Discover:Init:return", self)
     mainController.uiEvents.registerForEvent("Main:Master:Init:return", self)
