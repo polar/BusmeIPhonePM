@@ -1,10 +1,14 @@
 class BusmeSiteView < MKOverlayView
 
   attr_accessor :site
+  attr_accessor :view
+  attr_accessor :screen
 
-  def initialize(site)
+  def initialize(args)
     super()
-    self.site = site
+    self.site = args[:site]
+    self.view = args[:view]
+    self.screen = args[:screen]
     self.initWithOverlay(site)
   end
 
@@ -22,6 +26,10 @@ class BusmeSiteView < MKOverlayView
   end
 
   def drawMapRect(mapRect, zoomScale: zoomscale, inContext: context)
+    drawSiteGraphic(mapRect, zoomScale: zoomscale, inContext: context)
+  end
+
+  def drawSiteGraphic(mapRect, zoomScale: zoomscale, inContext: context)
     #puts "drawMapRect - #{zoomscale} - #{printRect(mapRect)}"
     puts "ZoomScale #{zoomscale} ZoomLevel #{Math.log2(zoomscale)}"
     mpoint = MKMapPointForCoordinate(overlay.coordinate)
@@ -53,6 +61,73 @@ class BusmeSiteView < MKOverlayView
 
   def printRect(rect)
     "RectXYHW(#{rect.origin.x}, #{rect.origin.y}, #{rect.size.height}, #{rect.size.width})"
+  end
+
+  def drawLocation(loc, mapRect, projection, context)
+    coord = CLLocationCoordinate2D.new(loc.latitude, loc.longitude)
+    mapPoint = MKMapPointForCoordinate(coord)
+    cgPoint = projection.translatePoint(mapPoint)
+    cgPoint = pointForMapPoint(mapPoint)
+
+ end
+
+
+  def drawBusArrowIcon(point, direction, reported, locator, projection, cgContext)
+    imageRect = CGRectMake(0.0, 0.0, locator.image.size.width / projection.zoomscale, locator.image.size.height / projection.zoomscale)
+    if true
+      arrow = locator.direction(direction)
+      scale = [0.5, (4-(19-projection.zoomLevel)/2)/4.0].max
+      icon = arrow.scale_to([45*scale, 45*scale])
+      icon
+    else
+      UIImage.canvas(locator.image.size) do |context|
+        locator.image.draw
+        # Rotate around the hotspot
+        center_x = locator.image.size.width/2.0
+        center_y = locator.image.size.height/2.0
+        rotate = - (direction/180.0 * Math::PI)
+        matrix = CGAffineTransformMakeTranslation(center_x, center_y)
+        matrix = CGAffineTransformRotate(matrix, rotate)
+        CGContextConcatCTM(context, matrix)
+        locator.arrow.draw
+        # move back
+        CGContextTranslateCTM(context, center_x, center_y)
+
+        scale = [0.5, (4-(19-projection.zoomLevel)/2)/4.0].max
+        scale = 1.0
+        scaleMtx = CGAffineTransformMakeScale(scale, scale)
+        hotspot = [locator.hotspot.x, locator.hotspot.y]
+        puts "Applying CGPoint Affine Transpform"
+        hsPoint = CGPointApplyAffineTransform(CGPointMake(hotspot[0], hotspot[1]), scaleMtx)
+        puts "Drawing locator inmage"
+        locator.image.drawInRect(imageRect)
+        #CGContextDrawImage(context, imageRect, locator.image)
+        if locator.arrow
+          puts "Drawing locator arrow"
+          locator.arrow.drawInRect(imageRect)
+          #CGContextDrawImage(context, imageRect, locator.arrow)
+        end
+        puts "Getting Image"
+        icon = UIGraphicsGetImageFromCurrentImageContext()
+        puts "Ending Context with #{icon} #{icon.CGImage}"
+        UIGraphicsEndImageContext()
+
+        x = point.x - hsPoint.x
+        y = point.y - hsPoint.y
+        imageRect.origin = CGPointMake(x, y)
+        puts "drawing icon at #{[x, y]}"
+        #icon.drawAtPoint(CGPointMake(x,y))
+        #context = CGContextGetCurrentContext
+        CGContextDrawImage(cgContext, imageRect, icon.CGImage)
+      end
+    end
+
+    #CGContextDrawImage(cgContext, imageRect, locator.image.CGImage)
+    #locView = UIImageView.alloc.initWithImage(arrow)
+    #centerViewAtPoint(view, point)
+    #puts "Drawing Image on #{cgContext}, at #{[point.x, point.y]} #{[arrow.size.width, arrow.size.height]}"
+    #locView.frame = CGRectMake(point.x, point.y, arrow.size.width, arrow.size.height)
+    #view<< locView
   end
 
 end

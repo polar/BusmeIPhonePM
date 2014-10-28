@@ -22,6 +22,13 @@ class Discover1Screen < ProMotion::MapScreen
     mainController.uiEvents.registerForEvent("Search:Discover:return", self)
     mainController.uiEvents.registerForEvent("Search:Find:return", self)
     initializeTouches
+
+    puts "ADDDING BUTTON DAMNIT"
+    button = UIButton.rounded_rect
+    button.frame = CGRectMake(100, 100, 120, 60)
+    button.backgroundColor = UIColor.greenColor
+    button.title  = "Eatme"
+    view.addSubview(button)
   end
 
   def initializeTouches
@@ -107,7 +114,22 @@ class Discover1Screen < ProMotion::MapScreen
     puts "View For Overlay!! #{overlay}"
     case overlay.class.name
       when "BusmeSite"
-        BusmeSiteView.new(overlay)
+        BusmeSiteView.new(site: overlay, screen: self, view: map_view)
     end
+  end
+
+  attr_accessor :locations
+  def addLocation(loc)
+    puts "adding location"
+    @locations ||= []
+    @locations << loc
+    puts "adding location to view"
+    self.view.addAnnotation(loc)
+    puts "added location"
+  end
+
+  def annotation_view(map_view, annotation)
+    puts "creating location view"
+    LocationAnnotationView.alloc.initWithLocation(annotation)
   end
 end

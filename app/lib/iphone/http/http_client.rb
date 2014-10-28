@@ -93,7 +93,7 @@ module IPhone
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock1)) if /d1\/get/ =~ url
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock)) if /discover\?lon/ =~ url
         res = nil
-        puts "HTTP Get #{url} on #{Dispatch::Queue.current}"
+        puts "HTTP Post #{url} on #{Dispatch::Queue.current}"
         resp = AFMotion::HTTP.post(url, params) do |result|
           # This thread always seems to be the apple-main-thread!
           # So we need to post back to the background immediately
@@ -104,7 +104,7 @@ module IPhone
               @result = nil
             else
               message = result.body.to_s
-              puts "HTTP Got #{message}"
+              puts "HTTP Post Got #{message}"
               @result = HttpResponse.new(result)
             end
             @sem.signal

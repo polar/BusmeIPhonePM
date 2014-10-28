@@ -1,5 +1,6 @@
 class MasterMapScreen < ProMotion::MapScreen
   include Platform::JourneySyncProgressEventDataConstants
+  include Api::UpdateProgressConstants
 
   attr_accessor :masterController
 
@@ -20,6 +21,7 @@ class MasterMapScreen < ProMotion::MapScreen
     self.title = masterController.master.title
     masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
     masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
+    masterController.api.uiEvents.registerForEvent("UpdateProgress", self)
     setMaster(masterController.master)
     initNavBarActivityItem
     initActivityDialog(masterController.master)
@@ -53,29 +55,50 @@ class MasterMapScreen < ProMotion::MapScreen
     alertView
   end
 
-  def onProgress(eventData)
+  def onSyncProgress(eventData)
+    eventData.isForced = false
     case eventData.action
       when P_BEGIN
-        alertView.show if eventData.isForced
-        alertView.message = "Contacting Server"
+       # alertView.show if eventData.isForced
+        #alertView.message = "Contacting Server"
         activityIndicator.startAnimating
       when P_SYNC_START
-        alertView.message = "Syncing"
+        puts "alertView.message : Syncing"
+        #alertView.message = "Syncing"
       when P_SYNC_END
-        alertView.message = ""
+       # alertView.message = ""
       when P_ROUTE_START
-        alertView.message = "Getting #{eventData.iRoute} of #{eventData.nRoutes} Routes"
+        puts "alertView.message : Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
+        #alertView.setMessage "Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
+        puts "alertView.message : set"
       when P_ROUTE_END
-        alertView.message = "Finished #{eventData.iRoute} of #{eventData.nRoutes} Routes"
+        puts "alertView.message : Eat shit mutherfucking aapple"
+       # alertView.setMessage "Eat shit mutherfucking aapple"
+        puts "alertView.message : set  ^^^^^^^^^^^^^^^^^^^"
+        puts "alertView.message : Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
+       # alertView.setMessage "Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
+        puts "alertView.message : set"
       when P_IOERROR
-        alertView.message = "IOERROR!!!"
-        alertView.dismissWithClickedButtonIndex(0, animated: true)
+        puts "alertView.message : IOERROR"
+        #alertView.message = "IOERROR!!!"
+        #alertView.dismissWithClickedButtonIndex(0, animated: true)
         UIAlertView.alert("Network Error", message: eventData.ioError)
       when P_DONE
-        alertView.message = "DONE"
-        alertView.dismissWithClickedButtonIndex(0, animated: true)
+        puts "alertView.message : DONE"
+       # alertView.message = "DONE"
+       # alertView.dismissWithClickedButtonIndex(0, animated: true)
         activityIndicator.stopAnimating
       else
+    end
+    puts "Done JourneySyncProgress #{eventData.action}"
+  end
+
+  def onUpdateProgress(eventData)
+    case eventData.action
+      when U_START
+        activityIndicator.startAnimating
+      when U_FINISH
+        activityIndicator.stopAnimating
     end
   end
 
@@ -90,8 +113,12 @@ class MasterMapScreen < ProMotion::MapScreen
         doSync(true)
       when "JourneySyncProgress"
         evd = event.eventData
-        puts "JourneySyncProgress: #{evd.inspect}"
-        onProgress(evd)
+        puts "JourneySyncProgress: #{evd.action}"
+        onSyncProgress(evd)
+      when "UpdateProgress"
+        evd = event.eventData
+        puts "UpdateProgress: #{evd.action}"
+        onUpdateProgress(evd)
     end
   end
 

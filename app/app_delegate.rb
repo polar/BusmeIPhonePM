@@ -1,5 +1,6 @@
 motion_require "json/pure"
 class AppDelegate < PM::Delegate
+  include Platform::JourneySyncProgressEventDataConstants
 
   status_bar true, animation: :none
 
@@ -16,6 +17,7 @@ class AppDelegate < PM::Delegate
   attr_accessor :eventsController
   attr_accessor :mainController
   attr_accessor :journeySyncTimer
+  attr_accessor :updateTimer
 
   def on_load(app, options = {})
 
@@ -34,6 +36,9 @@ class AppDelegate < PM::Delegate
     mainController.bgEvents.postEvent("Main:Discover:init",
            Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
    # puts "#{::JSON.generate(['hello', 'world'])}"
+    1.second.every do
+      puts "UI-Tick"
+    end
   end
 
   def showLookingDialog
@@ -63,6 +68,7 @@ class AppDelegate < PM::Delegate
   end
 
   def onBuspassEvent(event)
+    puts "AppDelegate: Got Event #{event.eventName}"
     case event.eventName
       when "Main:Discover:Init:return"
         evd = event.eventData
@@ -77,15 +83,23 @@ class AppDelegate < PM::Delegate
       when "Main:Master:Init:return"
         evd = event.eventData
         masterController = evd.return
-        eventsController.register(masterController.api)
-        discoverScreen.close
-        self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
-        open busmeMapScreen
+        puts "AppDelegate: masterController: #{masterController.__id__}"
         alertView = showMasterDialog(masterController.master)
+        eventsController.register(masterController.api)
+        puts "AppDelegate: closing Discover Screen"
+        discoverScreen.close
+        puts "AppDelegate: closed Discover Screen"
+        self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
+        puts "AppDelegate: Opening Master Map Screen"
+        open busmeMapScreen
+        puts "AppDelegate: Opened Master Map Screen"
         eventData = Platform::MasterEventData.new(:uiData => alertView)
         masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
+        # This event allows us to start the UpdateTimer after the first sync.
+        masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
         masterController.api.bgEvents.postEvent("Master:init", eventData)
         self.journeySyncTimer = JourneySyncTimer.new(masterController: masterController)
+        self.updateTimer = UpdateTimer.new(masterController: masterController)
 
       when "Master:Init:return"
         evd = event.eventData
@@ -93,7 +107,16 @@ class AppDelegate < PM::Delegate
         if alertView
           alertView.dismissWithClickedButtonIndex(0, animated: true)
         end
+      when "JourneySyncProgress"
+        evd = event.eventData
+        case evd.action
+          when P_DONE
+            if updateTimer.pleaseStop == true && journeySyncTimer.pleaseStop == false
+              updateTimer.start
+            end
+        end
     end
+    puts "AppDelegate: Finsished with event #{event.eventName}"
   end
 
 end
