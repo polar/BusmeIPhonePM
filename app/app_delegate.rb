@@ -15,30 +15,41 @@ class AppDelegate < PM::Delegate
   attr_accessor :busmeMapScreen
   attr_accessor :fgBusmeMapController
   attr_accessor :eventsController
+  attr_accessor :configurator
   attr_accessor :mainController
   attr_accessor :journeySyncTimer
   attr_accessor :updateTimer
 
+  attr_accessor :sem
+  attr_accessor :menu
+
   def on_load(app, options = {})
 
     self.eventsController = IPhone::EventsController.new(delegate: self)
+    begin
+      File.delete("Library/Caches/com.busme/syracuse-university-Journeys.xml")
+      File.delete("Library/Caches/com.busme/syracuse-university-Markers.xml")
+      File.delete("Library/Caches/com.busme/syracuse-university-Messages.xml")
+    rescue Exception => boom
+      puts "#{boom}"
+    end if false
 
 
-    self.mainController = ::MainController.new(directory: File.join("Library", "Caches", "com.busme"))
+    self.configurator = Configurator.new
+    self.mainController = ::MainController.new(
+        directory: File.join("Library", "Caches", "com.busme"),
+        busmeConfigurator: configurator)
     eventsController.register(mainController)
+    mainController.uiEvents.registerForEvent("Main:Init:return", self)
     mainController.uiEvents.registerForEvent("Main:Discover:Init:return", self)
     mainController.uiEvents.registerForEvent("Main:Master:Init:return", self)
+    mainController.uiEvents.registerForEvent("Search:Init:return", self)
 
-    self.discoverApi =  IPhone::DiscoverApi.new("http://busme-apis.herokuapp.com/apis/d1/get")
-    self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
-    open discoverScreen
-    alertView = showLookingDialog
-    mainController.bgEvents.postEvent("Main:Discover:init",
-           Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
-   # puts "#{::JSON.generate(['hello', 'world'])}"
-    1.second.every do
-      puts "UI-Tick"
-    end
+    mainController.bgEvents.postEvent("Main:init", Platform::MainEventData.new)
+  end
+
+  def applicationDidReceiveMemoryWarning(application)
+    puts "***************  Aplication  Memory Warning  ***************************"
   end
 
   def showLookingDialog
@@ -70,6 +81,31 @@ class AppDelegate < PM::Delegate
   def onBuspassEvent(event)
     puts "AppDelegate: Got Event #{event.eventName}"
     case event.eventName
+      when "Main:Init:return"
+        evd = event.eventData
+        if evd.return && evd.return == "defaultMaster"
+          master = evd.data[:master]
+          if master
+            alertView = showLookingDialog
+            eventData.uiData = alertView
+            masterApi = IPhone::Api.new(master)
+            eventData = Platform::MasterEventData.new(
+              :data => {
+                :master => master,
+                :masterApi => masterApi
+              },
+              :uiData => alertView
+            )
+            mainController.bgEvents.postEvent("Main:Master:init", eventData)
+          end
+        else # discover
+          self.discoverApi =  IPhone::DiscoverApi.new("http://busme-apis.herokuapp.com/apis/d1/get")
+          self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
+          alertView = showLookingDialog
+          mainController.bgEvents.postEvent("Main:Discover:init",
+                                            Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
+          open discoverScreen
+        end
       when "Main:Discover:Init:return"
         evd = event.eventData
         alertView = evd.uiData
@@ -77,7 +113,13 @@ class AppDelegate < PM::Delegate
           alertView.dismissWithClickedButtonIndex(0, animated: true)
         end
         mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new)
-
+      when "Search:Init:return"
+        loc = configurator.getLastLocation
+        if loc
+          mainController.bgEvents.postEvent("Search:discover", Platform::DiscoverEventData.new(
+              :data => { :lon => loc.longitude, :lat => loc.latitude, :buf => 10000 }
+          ))
+        end
       # The Discover Screen will fire off a "Main:Master:init" event when a master is selected.
       # We catch the return event here on the UI Thread and switch to the master's screen.
       when "Main:Master:Init:return"
@@ -100,6 +142,7 @@ class AppDelegate < PM::Delegate
         masterController.api.bgEvents.postEvent("Master:init", eventData)
         self.journeySyncTimer = JourneySyncTimer.new(masterController: masterController)
         self.updateTimer = UpdateTimer.new(masterController: masterController)
+        masterController.api.uiEvents.registerForEvent("Eatme1", self)
 
       when "Master:Init:return"
         evd = event.eventData
@@ -107,6 +150,11 @@ class AppDelegate < PM::Delegate
         if alertView
           alertView.dismissWithClickedButtonIndex(0, animated: true)
         end
+        lastLocation = configurator.getLastLocation
+        if lastLocation
+          mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new())
+        end
+
       when "JourneySyncProgress"
         evd = event.eventData
         case evd.action
@@ -117,6 +165,18 @@ class AppDelegate < PM::Delegate
         end
     end
     puts "AppDelegate: Finsished with event #{event.eventName}"
+  end
+
+  def applicationWillTerminate(application)
+    puts "Application is terminating."
+    if mainController
+      masterC = mainController.masterController
+      if masterC
+        masterC.storeMaster
+        puts "Setting default Master to #{masterC.master.name}"
+        configurator.setDefaultMaster(masterC.master)
+      end
+    end
   end
 
 end

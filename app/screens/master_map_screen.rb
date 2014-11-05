@@ -3,6 +3,7 @@ class MasterMapScreen < ProMotion::MapScreen
   include Api::UpdateProgressConstants
 
   attr_accessor :masterController
+  attr_accessor :routes_view
 
   def self.newScreen(args)
     puts "Initialize Busme Screen"
@@ -30,15 +31,30 @@ class MasterMapScreen < ProMotion::MapScreen
       puts "Store master"
       masterController.storeMaster
     end
+
+    self.routes_view = RoutesView.newView(:masterController => masterController)
+    #THIS IS FUCKED UP
+    # Tried to set the frame on the RoutesView and I get some weird Sugarcube error about adjust.
+    # This should just be
+    # frame from_top_right(height: "25%", width: "50%"),
+    # but NOO!!!!!! It won't fucking work.
+    bounds = view.frame
+    bounds.size.height = bounds.size.height/4.0
+    bounds.size.width = bounds.size.width/2.0
+    bounds.origin.x = bounds.origin.x + bounds.size.width
+    bounds.origin.y = bounds.origin.y + 44
+    routes_view.view.frame = bounds
+    view.addSubview(routes_view.view)
   end
 
   attr_accessor :activityIndicator
 
   def initNavBarActivityItem
-    self.activityIndicator =  UIActivityIndicatorView.gray
+    self.activityIndicator =  UIActivityIndicatorView.new
     activityIndicator.hidesWhenStopped = true
     activityView = UIBarButtonItem.alloc.initWithCustomView(activityIndicator)
     set_nav_bar_button :right, button: activityView
+    set_nav_bar_button :left, :title => "Menu", :style => :plain, :action => :open_menu
   end
 
   attr_accessor :alertView
@@ -49,7 +65,7 @@ class MasterMapScreen < ProMotion::MapScreen
                                                 delegate:nil,
                                                 cancelButtonTitle: nil,
                                                 otherButtonTitles: nil)
-    indicator = UIActivityIndicatorView.gray
+    indicator = UIActivityIndicatorView.new
     indicator.startAnimating
     alertView.setValue(indicator, forKey: "accessoryView")
     alertView
@@ -107,7 +123,13 @@ class MasterMapScreen < ProMotion::MapScreen
     masterController.api.bgEvents.postEvent("JourneySync", evd)
   end
 
+  def didReceiveMemoryWarning
+    puts "***************************  MAPSCREEN: MEMORY WARNING **********************************"
+  end
+
   def onBuspassEvent(event)
+    puts "MasterMapScreen: onBuspassEvent(#{event.eventName})"
+    puts "MasterMapScreen: onBupassEvent make Array #{[]}"
     case event.eventName
       when "Master:Init:return"
         doSync(true)
@@ -147,4 +169,9 @@ class MasterMapScreen < ProMotion::MapScreen
         MasterOverlayView.new(masterController: masterController, overlay: overlay, view: map_view)
     end
   end
+
+  def open_menu
+    open MasterMainMenu.newMenu(nav_bar: true, masterController: masterController, masterMapScreen: self)
+  end
+
 end

@@ -1,3 +1,4 @@
+motion_require "buspass_event_distributor"
 module IPhone
   class Api < Platform::PlatformApi
     def initialize(master)

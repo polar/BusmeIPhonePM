@@ -1,6 +1,9 @@
 class Discover1Screen < ProMotion::MapScreen
+  title "Busme!"
 
   attr_accessor :mainController
+  attr_accessor :menu
+  attr_accessor :routes_view
 
   # initialize doesn't get called because Promotion overrides new
   def self.newScreen(args)
@@ -17,18 +20,27 @@ class Discover1Screen < ProMotion::MapScreen
     []
   end
 
+  def mainController=(mc)
+    @mainController = WeakRef.new(mc)
+  end
+
+  def on_init
+    puts "SET BACK BUTTON"
+    set_nav_bar_button :left, :title => "Menu", :style => :plain, :action => :open_menu
+  end
+
   def after_init
     mainController.uiEvents.registerForEvent("Search:Init:return", self)
     mainController.uiEvents.registerForEvent("Search:Discover:return", self)
     mainController.uiEvents.registerForEvent("Search:Find:return", self)
     initializeTouches
-
-    puts "ADDDING BUTTON DAMNIT"
-    button = UIButton.rounded_rect
-    button.frame = CGRectMake(100, 100, 120, 60)
-    button.backgroundColor = UIColor.greenColor
-    button.title  = "Eatme"
-    view.addSubview(button)
+    #
+    # puts "ADDDING BUTTON DAMNIT"
+    # button = UIButton.rounded_rect
+    # button.frame = CGRectMake(100, 100, 120, 60)
+    # button.backgroundColor = UIColor.greenColor
+    # button.title  = "Eatme"
+    # view.addSubview(button)
   end
 
   def initializeTouches
@@ -85,8 +97,10 @@ class Discover1Screen < ProMotion::MapScreen
   def performFind(args)
     cgPoint = args.locationInView(map)
     loc = map.convertPoint(cgPoint, toCoordinateFromView: map)
-    mainController.bgEvents.postEvent("Search:find",
+    if ! @discoverInProgress
+      mainController.bgEvents.postEvent("Search:find",
                                       Platform::DiscoverEventData.new(data: {loc: loc}))
+    end
   end
 
   def onFind(event)
@@ -96,6 +110,13 @@ class Discover1Screen < ProMotion::MapScreen
       masterApi = IPhone::Api.new(master)
       mainController.bgEvents.postEvent("Main:Master:init",
               Platform::MasterEventData.new(data: {master: master, masterApi: masterApi}))
+    elsif !@discoverInProgress
+      # Fire up a screen that will show the available masters.
+      discoverController = mainController.discoverController
+      if discoverController && !discoverController.masters.empty?
+        loc = evd.data[:loc]
+        open MastersTableScreen.newScreen(:mainController => mainController, :nav_bar => true)
+      end
     end
   end
 
@@ -131,5 +152,12 @@ class Discover1Screen < ProMotion::MapScreen
   def annotation_view(map_view, annotation)
     puts "creating location view"
     LocationAnnotationView.alloc.initWithLocation(annotation)
+  end
+
+  def open_menu
+    puts "OpenMenu!!!"
+    @menu ||= DiscoverMainMenu.newMenu(nav_bar: true, discoverScreen: self)
+    open @menu
+    puts "Menu Opened?????"
   end
 end

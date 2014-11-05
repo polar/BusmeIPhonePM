@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 $:.unshift("/Library/RubyMotion/lib")
 require 'motion/project/template/ios'
+require 'motion-cocoapods'
 require "rubygems"
 require 'bundler'
 #require "motion-yaml"
@@ -12,6 +13,7 @@ Motion::Project::App.setup do |app|
   app.name = 'promotion-motion-kit'
   app.files_dependencies "app/lib/string.rb" => ["app/app_delegate.rb"]
   app.pods do
+    pod 'MMDrawerController'
     pod "RaptureXML", :git => "https://github.com/IvanRublev/RaptureXML.git"
   end
 end

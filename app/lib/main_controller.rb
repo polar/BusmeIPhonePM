@@ -4,6 +4,10 @@ class MasterController < Platform::MasterController
     self.externalStorageController = Platform::XMLExternalStorageController.new(masterController: self, api: api)
     self.storageSerializerController = Platform::StorageSerializerController.new(api, externalStorageController)
   end
+
+  def mainController=(mc)
+    @mainController = WeakRef.new(mc)
+  end
 end
 
 

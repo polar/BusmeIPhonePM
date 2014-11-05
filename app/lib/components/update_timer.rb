@@ -33,7 +33,7 @@ class UpdateTimer
     end
     puts "Eatme 3"
     puts "Eatme 4 #{[]}"
-    eatme = Platform::JourneySyncData.new({})
+    eatme = Platform::JourneySyncEventData.new({})
     puts "Eatme 2"
     evd = Platform::UpdateEventData.new(isForced: forced)
     puts "UpdateTime. posting Update"

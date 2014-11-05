@@ -28,9 +28,9 @@ class MasterOverlayView < MKOverlayView
   end
 
   def registerForEvents
-   # masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
-    #masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
-    #masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
+    masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
+    masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
+    masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
   end
 
   def onBuspassEvent(event)
@@ -41,7 +41,7 @@ class MasterOverlayView < MKOverlayView
         rect = journeyDisplay.boundingMapRect
         # Get rid of any location mapRect Data. It will get added in drawBusArrow
         self.locators.delete(journeyDisplay.route.id)
-        #setNeedsDisplayInMapRect(rect)
+        setNeedsDisplayInMapRect(rect)
       when "JourneyLocationUpdate"
         updateJourneyLocation(event.eventData)
     end
@@ -73,7 +73,7 @@ class MasterOverlayView < MKOverlayView
       size = data.mapRect.size if data.mapRect
     end
     if size.nil?
-      size = CGRectMake(journeyDisplay.boundingMapRect)
+      size = journeyDisplay.boundingMapRect.size
     end
     mapRect = mapRectForLocation(loc, size)
     setNeedsDisplayInMapRect(mapRect)

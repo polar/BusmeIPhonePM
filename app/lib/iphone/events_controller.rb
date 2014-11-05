@@ -20,52 +20,40 @@ module IPhone
     def register(api)
       self.uiEvents = api.uiEvents
       self.bgEvents = api.bgEvents
-      bgEvents.postEventListener = self
-      uiEvents.postEventListener = self
+      bgEvents.postEventListener = PostEventListener.new(@bgQueue, self.bgEvents)
+      uiEvents.postEventListener = PostEventListener.new(@fgQueue, self.uiEvents)
     end
 
-    def fixEventDistributors(api, name)
-      self.uiEvents = api.uiEvents = ::Api::BuspassEventDistributor.new(name: "IPhone:UIEvents(#{name})")
-      self.bgEvents = api.bgEvents = ::Api::BuspassEventDistributor.new(name: "IPhone:BGEvents(#{name})")
-      bgEvents.postEventListener = self
-      uiEvents.postEventListener = self
-    end
-
-    def onPostEvent(queue)
-      #puts "onPostEvent from #{queue} from #{Dispatch::Queue.current}"
-      if /BGEvents/ =~ queue.name
-        #puts "onPostEvent dispatching to #{@bgQueue}"
-        @bgQueueSize += 1
-        puts "onPostEvent dispatching to #{@bgQueue} #{@bgQueueSize}"
-        @bgQueue.async do
+    class PostEventListener
+      def initialize(dispatchQ, eventQ)
+        @dispatchQ = dispatchQ
+        @eventQ = eventQ
+        @queueTime = Time.now
+        @queueCount = 0
+        @queueSize = 0
+      end
+      def to_s
+        "PostEventListener(#{@dispatchQ},#{@eventQ})"
+      end
+      def onPostEvent
+        puts "#{self.to_s}:onPostEvent"
+        @queueSize += 1
+        puts "#{self.to_s}:onPostEvent dispatching to #{@dispatchQ} #{@queueSize}"
+        @dispatchQ.async do
           start_time = Time.now
-          tdiff = Time.now - @bgQueueTime
-          puts "onPostEvent#{@bgQueue}: tdiff #{tdiff} count #{@bgQueueCount} size #{@bgQueueSize}"
-          puts "onPostEvent:rollAll from #{queue} #{queue.eventQ.size} on #{Dispatch::Queue.current}"
-          queue.rollAll
-          @bgQueueCount += 1
-          @bgQueueTime = Time.now
-          @bgQueueSize -= 1
+          tdiff = Time.now - @queueTime
+          puts "#{self.to_s}:onPostEvent#{@eventQ}: tdiff #{tdiff} count #{@queueCount} size #{@queueSize}"
+          puts "#{self.to_s}:onPostEvent:rollAll from #{@eventQ} #{@eventQ.eventQ.size} on #{Dispatch::Queue.current}"
+          puts "#{self.to_s}:onPostEvent:rollAll make array #{[]}"
+          @eventQ.rollAll
+          @queueCount += 1
+          @queueTime = Time.now
+          @queueSize -= 1
           end_time = Time.now
           spent = end_time - start_time
-          puts "onPostEvent rolled All in #{spent} from  #{queue} #{queue.eventQ.size} on  #{Dispatch::Queue.current} size #{@bgQueueSize}"
+          puts "#{self.to_s}:onPostEvent: Finished rollAll in #{spent} from  #{@eventQ} #{@eventQ.eventQ.size} on  #{Dispatch::Queue.current} size #{@queueSize}"
+          puts "#{self.to_s}:onPostEvent: Finished rollAll make array #{[]}"
         end
-      else
-        @fgQueueSize += 1
-        puts "onPostEvent dispatching to #{@fgQueue} #{@fgQueueSize}"
-        @fgQueue.async do
-          start_time = Time.now
-          tdiff = Time.now - @fgQueueTime
-          puts "onPostEvent: tdiff #{tdiff} count #{@fgQueueCount} size #{@fgQueueSize}"
-          puts "onPostEvent:rollAll from #{queue} on #{Dispatch::Queue.current}"
-          queue.rollAll
-          @fgQueueCount += 1
-          @fgQueueTime = Time.now
-          @fgQueueSize -= 1
-          spent = Time.now - start_time
-          puts "onPostEvent rolled All in #{spent} from  #{queue} on  #{Dispatch::Queue.current} size #{@fgQueueSize}"
-        end
-        puts "onPostEvent dispatched to #{@fgQueue}"
       end
     end
   end
