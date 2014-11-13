@@ -7,6 +7,6 @@ class JourneySyncProgressReporter
 
   def onBuspassEvent(event)
     evd = event.eventData
-    puts "JourneySyncProgress: #{evd.inspect}"
+   #puts "JourneySyncProgress: #{evd.inspect}"
   end
 end

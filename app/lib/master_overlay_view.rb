@@ -23,18 +23,19 @@ class MasterOverlayView < MKOverlayView
     self.initWithOverlay(overlay)
     @mustDrawPaths = true
     self.locators = {}
-    puts "Creating MasterOverlayView for #{master.slug}"
+   # puts "Creating MasterOverlayView for #{master.slug}"
     registerForEvents
   end
 
   def registerForEvents
+    masterController.api.uiEvents.registerForEvent("VisibilityChanged", self)
     masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
     masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
     masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
   end
 
   def onBuspassEvent(event)
-    puts "MasterOverlayView. Got event #{event.eventName}"
+   # puts "MasterOverlayView. Got event #{event.eventName}"
     case event.eventName
       when "JourneyAdded", "JourneyRemoved"
         journeyDisplay = event.eventData.journeyDisplay
@@ -44,8 +45,10 @@ class MasterOverlayView < MKOverlayView
         setNeedsDisplayInMapRect(rect)
       when "JourneyLocationUpdate"
         updateJourneyLocation(event.eventData)
+      when "VisibilityChanged"
+        setNeedsDisplayInMapRect(overlay.boundingMapRect)
     end
-    puts "MasterOverlayView. Finished event #{event.eventName}"
+   # puts "MasterOverlayView. Finished event #{event.eventName}"
   end
 
   # Helper function to create a MapRect with the specified mapSize
@@ -57,7 +60,7 @@ class MasterOverlayView < MKOverlayView
     mapHeight = mapSize.height
     # Center the Rect
     MKMapRectMake(mapPoint.x - mapWidth/2, mapPoint.y - mapHeight/2, mapWidth, mapHeight).tap do |mapRect|
-      puts "mapRectForLocation #{loc.inspect} #{printRect mapRect}"
+     # puts "mapRectForLocation #{loc.inspect} #{printRect mapRect}"
     end
   end
 
@@ -105,23 +108,29 @@ class MasterOverlayView < MKOverlayView
   def drawMapRect(mapRect, zoomScale: zoomscale, inContext: context)
     @count ||= 0
     thisCount = (@count += 1)
-    puts ">>>> DrawRect #{thisCount} we have #{masterController.journeyDisplayController.getJourneyDisplays.size} JourneyDisplays"
+   # puts ">>>> DrawRect #{thisCount} we have #{masterController.journeyDisplayController.getJourneyDisplays.size} JourneyDisplays"
     p = Projection.new(self, mapRect, zoomscale)
     drawPaths(mapRect, p, context)
     # We draw locators over the paths.
     drawLocators(mapRect, p, context)
-    puts "<<<<< Exit DrawMapRect #{thisCount} at #{p}"
+   # puts "<<<<< Exit DrawMapRect #{thisCount} at #{p}"
   end
 
   def drawPaths(mapRect, projection, context)
-    puts ">>>> DrawPaths #{p} we have #{masterController.journeyDisplayController.getJourneyDisplays.size} JourneyDisplays"
+   # puts ">>>> DrawPaths #{p} we have #{masterController.journeyDisplayController.getJourneyDisplays.size} JourneyDisplays"
     CGContextSaveGState(context)
     CGContextSetLineWidth(context, 3.0/projection.zoomscale)
     CGContextSetStrokeColorWithColor(context, UIColor.blueColor.cgcolor(0.5))
     patterns = []
     jds = masterController.journeyDisplayController.getJourneyDisplays.dup
     jds.each do |jd|
-      patterns += jd.route.journeyPatterns if jd.isPathVisible?
+      patterns += jd.route.journeyPatterns if jd.isPathVisible? && !jd.isPathHighlighted?
+    end
+    drawPatterns(patterns, projection, context)
+    CGContextSetStrokeColorWithColor(context, UIColor.redColor.cgcolor(0.9))
+    patterns =[]
+    jds.each do |jd|
+      patterns += jd.route.journeyPatterns if jd.isPathVisible? && jd.isPathHighlighted?
     end
     drawPatterns(patterns, projection, context)
     CGContextRestoreGState(context)
@@ -132,7 +141,7 @@ class MasterOverlayView < MKOverlayView
   end
 
   def drawPatterns(patterns, projection, context)
-    puts "Should draw #{patterns.size} patterns"
+   # puts "Should draw #{patterns.size} patterns"
     lastNumberOfPathsVisible = 0
     drawn = {}
     patterns.each do |p|
@@ -151,20 +160,20 @@ class MasterOverlayView < MKOverlayView
   end
 
   def drawPattern(pattern, projection, context)
-    puts "DrawPattern #{pattern.id} at #{projection}"
+   # puts "DrawPattern #{pattern.id} at #{projection}"
     projectedPath = pattern.projectedPath
     # Returns an Integration::Path that has a list of paths, which are arrays of Integration::Point
     path = Utils::ScreenPathUtils.toClippedScreenPath(projectedPath, projection)
     if path && path.paths
       path.paths.each do |points|
         if points.size > 1
-          puts "Path starts at #{points.first.inspect}"
+         # puts "Path starts at #{points.first.inspect}"
           CGContextMoveToPoint(context, points.first.x, points.first.y)
           points.drop(1).each do |point|
             #puts "AddLineToPoint(#{point})"
             CGContextAddLineToPoint(context, point.x, point.y)
           end
-          puts "Path ends at #{points.last.inspect}"
+         # puts "Path ends at #{points.last.inspect}"
         end
       end
       #puts "Stroking Path"
@@ -195,20 +204,24 @@ class MasterOverlayView < MKOverlayView
     mapPoint = MKMapPointForCoordinate(coord)
     cgPoint = projection.translatePoint(mapPoint)
     cgPoint = pointForMapPoint(mapPoint)
-    puts "drawLocation #{loc.inspect} #{coord.inspect} #{mapPoint.inspect} #{cgPoint.inspect}"
-    imageRect = drawBusArrow(jd.route, cgPoint, jd.route.lastKnownDirection, jd.route.reported, ::Locator.get("blue"), projection, context)
+   # puts "drawLocation #{loc.inspect} #{coord.inspect} #{mapPoint.inspect} #{cgPoint.inspect}"
+    if jd.isPathHighlighted?
+      imageRect = drawBusArrow(jd.route, cgPoint, jd.route.lastKnownDirection, jd.route.reported, ::Locator.get("red"), projection, context)
+    else
+      imageRect = drawBusArrow(jd.route, cgPoint, jd.route.lastKnownDirection, jd.route.reported, ::Locator.get("blue"), projection, context)
+    end
     recordLocator(jd, coord, mapRectForRect(imageRect))
   end
 
   # Returns the imageRect it was drawn into.
   def drawBusArrow(theRoute, point, direction, reported, locator, projection, cgContext)
-    puts "drawBusArrow at #{point.inspect} #{direction}"
+   # puts "drawBusArrow at #{point.inspect} #{direction}"
     scale = [0.5, (4-(19-projection.zoomLevel)/2)/4.0].max
     icon = locator.direction(direction).scale_by(scale)
     x = point.x - icon.hotspot.x/projection.zoomscale
     y = point.y - icon.hotspot.y/projection.zoomscale
     imageRect = CGRectMake(x, y, icon.image.size.width/projection.zoomscale, icon.image.size.height/projection.zoomscale)
-    puts "drawBusArrow #{projection.zoomscale} at #{point.inspect} #{direction} into #{printRect imageRect} #{printRect mapRectForRect(imageRect)}"
+   # puts "drawBusArrow #{projection.zoomscale} at #{point.inspect} #{direction} into #{printRect imageRect} #{printRect mapRectForRect(imageRect)}"
     CGContextDrawImage(cgContext, imageRect, icon.image.cgimage)
     imageRect
   end

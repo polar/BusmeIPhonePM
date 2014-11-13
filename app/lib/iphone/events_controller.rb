@@ -36,23 +36,23 @@ module IPhone
         "PostEventListener(#{@dispatchQ},#{@eventQ})"
       end
       def onPostEvent
-        puts "#{self.to_s}:onPostEvent"
+       #puts "#{self.to_s}:onPostEvent"
         @queueSize += 1
-        puts "#{self.to_s}:onPostEvent dispatching to #{@dispatchQ} #{@queueSize}"
+       #puts "#{self.to_s}:onPostEvent dispatching to #{@dispatchQ} #{@queueSize}"
         @dispatchQ.async do
           start_time = Time.now
           tdiff = Time.now - @queueTime
-          puts "#{self.to_s}:onPostEvent#{@eventQ}: tdiff #{tdiff} count #{@queueCount} size #{@queueSize}"
-          puts "#{self.to_s}:onPostEvent:rollAll from #{@eventQ} #{@eventQ.eventQ.size} on #{Dispatch::Queue.current}"
-          puts "#{self.to_s}:onPostEvent:rollAll make array #{[]}"
+         #puts "#{self.to_s}:onPostEvent#{@eventQ}: tdiff #{tdiff} count #{@queueCount} size #{@queueSize}"
+         #puts "#{self.to_s}:onPostEvent:rollAll from #{@eventQ} #{@eventQ.eventQ.size} on #{Dispatch::Queue.current}"
+         #puts "#{self.to_s}:onPostEvent:rollAll make array #{[]}"
           @eventQ.rollAll
           @queueCount += 1
           @queueTime = Time.now
           @queueSize -= 1
           end_time = Time.now
           spent = end_time - start_time
-          puts "#{self.to_s}:onPostEvent: Finished rollAll in #{spent} from  #{@eventQ} #{@eventQ.eventQ.size} on  #{Dispatch::Queue.current} size #{@queueSize}"
-          puts "#{self.to_s}:onPostEvent: Finished rollAll make array #{[]}"
+         #puts "#{self.to_s}:onPostEvent: Finished rollAll in #{spent} from  #{@eventQ} #{@eventQ.eventQ.size} on  #{Dispatch::Queue.current} size #{@queueSize}"
+         #puts "#{self.to_s}:onPostEvent: Finished rollAll make array #{[]}"
         end
       end
     end

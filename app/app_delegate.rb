@@ -1,5 +1,6 @@
 motion_require "json/pure"
 class AppDelegate < PM::Delegate
+  include Orientation
   include Platform::JourneySyncProgressEventDataConstants
 
   status_bar true, animation: :none
@@ -19,6 +20,8 @@ class AppDelegate < PM::Delegate
   attr_accessor :mainController
   attr_accessor :journeySyncTimer
   attr_accessor :updateTimer
+  attr_accessor :locationManager
+  attr_accessor :bannerTimer
 
   attr_accessor :sem
   attr_accessor :menu
@@ -40,12 +43,34 @@ class AppDelegate < PM::Delegate
         directory: File.join("Library", "Caches", "com.busme"),
         busmeConfigurator: configurator)
     eventsController.register(mainController)
+    mainController.uiEvents.registerForEvent("Main:select", self)
     mainController.uiEvents.registerForEvent("Main:Init:return", self)
     mainController.uiEvents.registerForEvent("Main:Discover:Init:return", self)
     mainController.uiEvents.registerForEvent("Main:Master:Init:return", self)
     mainController.uiEvents.registerForEvent("Search:Init:return", self)
 
     mainController.bgEvents.postEvent("Main:init", Platform::MainEventData.new)
+
+    #puts "Device generatesOrientationNotifications #{UIDevice.currentDevice.generatesDeviceOrientationNotifications}"
+    UIDevice.currentDevice.beginGeneratingDeviceOrientationNotifications
+    @current_orientation = UIDevice.currentDevice.orientation
+    if device_landscape?(@current_orientation)
+      @current_bounds = screenSize
+    end
+    setupLocationManager
+    c = CLLocation.alloc.initWithLatitude(43.0, longitude: -76.9)
+    p c.description
+    NSLog("c.coordinate: #{c.coordinate}")
+    p c.coordinate
+    self
+  end
+
+  def screenSize
+    size = UIScreen.mainScreen.bounds.size
+    if NSFountationVersionNumber <= NSFoundationVersionNumber_iOS_7_1 && interface_landscape?(UIApplication.sharedApplication.statusBarOrientation)
+      size = CGMakeSize(size.height, size.width)
+    end
+    size
   end
 
   def applicationDidReceiveMemoryWarning(application)
@@ -79,8 +104,20 @@ class AppDelegate < PM::Delegate
   end
 
   def onBuspassEvent(event)
-    puts "AppDelegate: Got Event #{event.eventName}"
+    #PM.logger.info "AppDelegate: Got Event #{event.eventName}"
     case event.eventName
+      when "Main:select"
+        evd = event.eventData
+        alertView = showLookingDialog
+        if busmeMapScreen
+          busmeMapScreen.close
+          saveMaster(false)
+        end
+        mainController.bgEvents.postEvent("Main:Discover:init",
+                                          Platform::DiscoverEventData.new(uiData: alertView,
+                                                                          data: {discoverApi: discoverApi}))
+        discoverScreen.clear
+        open discoverScreen
       when "Main:Init:return"
         evd = event.eventData
         if evd.return && evd.return == "defaultMaster"
@@ -125,24 +162,28 @@ class AppDelegate < PM::Delegate
       when "Main:Master:Init:return"
         evd = event.eventData
         masterController = evd.return
-        puts "AppDelegate: masterController: #{masterController.__id__}"
+        PM.logger.info "AppDelegate: masterController: #{masterController.__id__}"
         alertView = showMasterDialog(masterController.master)
         eventsController.register(masterController.api)
-        puts "AppDelegate: closing Discover Screen"
+        PM.logger.info "AppDelegate: closing Discover Screen"
         discoverScreen.close
-        puts "AppDelegate: closed Discover Screen"
+        PM.logger.info "AppDelegate: closed Discover Screen"
         self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
-        puts "AppDelegate: Opening Master Map Screen"
+        PM.logger.info "AppDelegate: Opening Master Map Screen"
         open busmeMapScreen
-        puts "AppDelegate: Opened Master Map Screen"
+        PM.logger.info "AppDelegate: Opened Master Map Screen"
         eventData = Platform::MasterEventData.new(:uiData => alertView)
         masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
         # This event allows us to start the UpdateTimer after the first sync.
         masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
         masterController.api.bgEvents.postEvent("Master:init", eventData)
+        # We set up the timers for JourneySync and Update, but we don't start them
+        # until after each one has completed its first one.
         self.journeySyncTimer = JourneySyncTimer.new(masterController: masterController)
         self.updateTimer = UpdateTimer.new(masterController: masterController)
-        masterController.api.uiEvents.registerForEvent("Eatme1", self)
+        # We'll start the banners right away.
+        self.bannerTimer = BannerTimer.new(masterController: masterController)
+        bannerTimer.start
 
       when "Master:Init:return"
         evd = event.eventData
@@ -154,6 +195,9 @@ class AppDelegate < PM::Delegate
         if lastLocation
           mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new())
         end
+        PM.logger.info "SETTING TIMEZONE TO #{mainController.masterController.api.buspass.timezone}"
+        timeZone = NSTimeZone.timeZoneWithName mainController.masterController.api.buspass.timezone
+        NSTimeZone.setDefaultTimeZone(timeZone) if timeZone
 
       when "JourneySyncProgress"
         evd = event.eventData
@@ -161,22 +205,95 @@ class AppDelegate < PM::Delegate
           when P_DONE
             if updateTimer.pleaseStop == true && journeySyncTimer.pleaseStop == false
               updateTimer.start
+              journeySyncTimer.start
             end
         end
     end
-    puts "AppDelegate: Finsished with event #{event.eventName}"
+    #PM.logger.info "AppDelegate: Finished with event #{event.eventName}"
   end
 
   def applicationWillTerminate(application)
-    puts "Application is terminating."
+    PM.logger.info "Application is terminating."
+    saveMaster(true)
+  end
+
+  def saveMaster(asDefault = false)
     if mainController
       masterC = mainController.masterController
       if masterC
         masterC.storeMaster
-        puts "Setting default Master to #{masterC.master.name}"
-        configurator.setDefaultMaster(masterC.master)
+        if asDefault
+          PM.logger.info "Setting default Master to #{masterC.master.name}"
+          configurator.setDefaultMaster(masterC.master)
+        end
       end
     end
+  end
+
+  def should_rotate(orientation)
+    PM.logger.info "AppDelegate: should_rotate(#{interface_orientation_names[orientation]})"
+    PM.logger.info "AppDelegate: should_rotate Interface #{interface_orientation_names[UIApplication.sharedApplication.statusBarOrientation]} superview.frame #{view.superview.inspect} bounds #{bounds.inspect}"
+  end
+
+  def will_rotate(orientation, duration)
+    PM.logger.info "AppDelegate: will_rotate(#{interface_orientation_names[orientation]}, #{duration})"
+    PM.logger.info "AppDelegate: will_rotate Interface #{interface_orientation_names[UIApplication.sharedApplication.statusBarOrientation]} superview.frame #{view.superview.inspect} bounds #{bounds.inspect}"
+  end
+
+  def on_rotate
+    #puts "AppDelegate: on_rotate(#{interface_orientation_names[orientation]})"
+    PM.logger.info "AppDelegate: on_rotate Interface #{interface_orientation_names[UIApplication.sharedApplication.statusBarOrientation]} superview.frame #{view.superview.inspect} bounds #{bounds.inspect}"
+  end
+
+  def setupLocationManager
+    PM.logger.info "AppDelegate: set up LocationManager"
+    BubbleWrap::Location.get(distance_filter:10, desired_accuracy: :nearest_ten_meters) do |result|
+      @count == (@count || 0) + 1
+      if result[:error]
+        PM.logger.info "Error getting Location #{result[:error]}"
+      elsif result[:to]
+        PM.logger.info "Got Location #{result.inspect}"
+        PM.logger.info "Got Location #{[]}"
+        PM.logger.info "Got Location #{result[:to]}"
+        PM.logger.info "Got Location #{result[:to].coordinate.inspect}"
+        PM.logger.info "Got Location #{result[:to].coordinate.longitude}, #{result[:to].coordinate.latitude}"
+        loc = Platform::Location.new("Location#{@count}", result[:to].coordinate.longitude, result[:to].coordinate.latitude)
+        PM.logger.info "Got Location #{loc}"
+        evd = Platform::LocationEventData.new(loc)
+        PM.logger.info "Submitting #{evd}"
+        if BW::App.delegate.mainController
+          PM.logger.info "Posting to Main"
+          BW::App.delegate.mainController.bgEvents.postEvent("LocationUpdate", evd)
+          if @mainController.masterController
+            PM.logger.info "Posting to Master"
+            BW::App.delegate.mainController.masterController.api.bgEvents.postEvent("LocationUpdate", evd)
+          end
+          PM.logger.info "Posting Done"
+        end
+      else
+        PM.logger.info "Got nothing for location #{result.inspect}"
+      end
+      PM.logger.info "Location.get DONE"
+    end
+  end
+
+  # For REPL for now
+  @last_location
+  def loc(lon,lat)
+    m = BubbleWrap::Location.location_manager
+    c = CLLocation.alloc.initWithLatitude(lat, longitude: lon)
+    PM.logger.info "Setting up #{c}"
+    #PM.logger.info "Setting up #{c.coordinate}"
+    #PM.logger.info "Setting up #{c.coordinate.latitude} #{c.coordinate.longitude}"
+    BubbleWrap::Location.locationManager(m, didUpdateToLocation: c, fromLocation: @last_location)
+    @last_location = c
+  end
+
+  def to_s
+    "<AppDelegate>"
+  end
+  def inspect
+    to_s
   end
 
 end

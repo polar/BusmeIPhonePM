@@ -52,7 +52,7 @@ module IPhone
         []
       end
     end
-    puts "past IPHone::Http"
+
     class HttpClient < Integration::Http::HttpClient
       def initialize
         super
@@ -66,18 +66,18 @@ module IPhone
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock1)) if /d1\/get/ =~ url
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock)) if /discover\?lon/ =~ url
         res = nil
-        puts "HTTP Get #{url} on #{Dispatch::Queue.current}"
+        PM.logger.info "HTTP Get #{url} on #{Dispatch::Queue.current}"
         resp = AFMotion::HTTP.get(url) do |result|
           # This thread always seems to be the apple-main-thread!
           # So we need to post back to the background immediately
           @queue.async do
             @entry.wait
             if result.failure?
-              puts "HTTP failure on #{url} #{result.inspect}"
+              PM.logger.info "HTTP failure on #{url} #{result.inspect}"
               @result = nil
             else
               message = result.body.to_s
-              puts "HTTP Got #{message}"
+              PM.logger.info "HTTP Got #{message}"
               @result = HttpResponse.new(result)
             end
             @sem.signal
@@ -93,18 +93,18 @@ module IPhone
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock1)) if /d1\/get/ =~ url
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock)) if /discover\?lon/ =~ url
         res = nil
-        puts "HTTP Post #{url} on #{Dispatch::Queue.current}"
+        PM.logger.info "HTTP Post #{url} on #{Dispatch::Queue.current}"
         resp = AFMotion::HTTP.post(url, params) do |result|
           # This thread always seems to be the apple-main-thread!
           # So we need to post back to the background immediately
           @queue.async do
             @entry.wait
             if result.failure?
-              puts "HTTP failure on #{url} #{result.inspect}"
+              PM.logger.info "HTTP failure on #{url} #{result.inspect}"
               @result = nil
             else
               message = result.body.to_s
-              puts "HTTP Post Got #{message}"
+              PM.logger.info "HTTP Post Got #{message}"
               @result = HttpResponse.new(result)
             end
             @sem.signal
@@ -128,18 +128,18 @@ module IPhone
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock1)) if /d1\/get/ =~ url
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock)) if /discover\?lon/ =~ url
         res = nil
-        puts "HTTP Get #{url} on #{Dispatch::Queue.current}"
+        PM.logger.info "HTTP Get #{url} on #{Dispatch::Queue.current}"
         resp = AFMotion::HTTP.get(url) do |result, a, b|
           # This thread always seems to be the apple-main-thread!
           # So we need to post back to the background immediately
           @queue.async do
             @entry.wait
             if result.failure?
-              puts "HTTP failure on #{url} #{result.inspect}"
+             #puts "HTTP failure on #{url} #{result.inspect}"
               @result = nil
             else
               message = result.body.to_s
-              puts "HTTP Got #{message}"
+              PM.logger.info "HTTP Got #{message}"
               @result = Integration::Http::HttpEntity.new(RWrap.new(result))
             end
             @sem.signal
@@ -155,18 +155,18 @@ module IPhone
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock1)) if /d1\/get/ =~ url
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock)) if /discover\?lon/ =~ url
         res = nil
-        puts "HTTP Post #{url} on #{Dispatch::Queue.current}"
+        PM.logger.info "HTTP Post #{url} on #{Dispatch::Queue.current}"
         resp = AFMotion::HTTP.post(url, params) do |result, a, b|
           # This thread always seems to be the apple-main-thread!
           # So we need to post back to the background immediately
           @queue.async do
             @entry.wait
             if result.failure?
-              puts "HTTP failure on #{url} #{result.inspect}"
+              PM.logger.info "HTTP failure on #{url} #{result.inspect}"
               @result = nil
             else
               message = result.body.to_s
-              puts "HTTP Got #{message}"
+              PM.logger.info "HTTP Got #{message}"
               @result = Integration::Http::HttpEntity.new(RWrap.new(result))
             end
             @sem.signal

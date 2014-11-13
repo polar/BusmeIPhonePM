@@ -31,29 +31,29 @@ class FGBusmeMapController
           appDelegate.eventsController.fixEventDistributors(api, master.slug)
           # We post on the old Events Distributor. It will get replaced by onSet.
           evd = Platform::BusmeApiSetEventData.new(master, api, "/tmp")
-          puts "FG BusmeMapController: SetMaster: Setting for Master #{master.slug}"
+         #puts "FG BusmeMapController: SetMaster: Setting for Master #{master.slug}"
           guts.api.bgEvents.postEvent("BusmeApi:set", evd)
         else
-          puts "FG BusmeMapController: SetMaster: is Nil"
+         #puts "FG BusmeMapController: SetMaster: is Nil"
         end
         # This event comes from the BusmeAPIController when the api has been switched.
         # We need to reregister for at least the onSet and onGet
       when "BusmeApi:preSet"
-        puts "Current Master #{currentMaster} was set. Registering for Events"
+       #puts "Current Master #{currentMaster} was set. Registering for Events"
         registerForEvents(guts.api)
       when "BusmeApi:onSet"
         # This event comes in on the new master specific events distirbutor.
-        puts "Current Master #{currentMaster} was set. Firing a Get"
+       #puts "Current Master #{currentMaster} was set. Firing a Get"
         evd = Platform::BusmeApiGetEventData.new(nil, nil)
         guts.api.bgEvents.postEvent("BusmeApi:get", evd)
       when "BusmeApi:onGet"
         get = event.eventData.get
         if get
-          puts "FG BusmeMapController: onGet: master got #{get}"
+         #puts "FG BusmeMapController: onGet: master got #{get}"
           evd = Platform::JourneySyncEventData.new(true)
           guts.api.bgEvents.postEvent("JourneySync", evd)
         else
-          puts "Did not Get for current Master #{currentMaster}"
+         #puts "Did not Get for current Master #{currentMaster}"
         end
     end
   end

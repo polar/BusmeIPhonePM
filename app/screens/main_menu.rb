@@ -1,31 +1,5 @@
 class DiscoverMainMenu < MenuScreen
 
-  def test_menu
-    {
-        :title => "Test",
-            :menu => [{
-                      :title => "Eatme 1",
-                      :action => :test,
-                      :accessory_type => :none
-                  },{
-                      :title => "Eatme 2",
-                      :action => :test,
-                      :accessory_type => :disclosure_indicator
-                  },{
-                      :title => "Eatme 3",
-                      :action => :test,
-                      :accessory_type => :disclosure_button
-                  },{
-                      :title => "Eatme 4",
-                      :action => :test,
-                      :accessory_type => eatme ? :checkmark : :none
-                  },{
-                      :title => "Eatme 5",
-                      :action => :test,
-                      :accessory_type => :detail_button
-                  }]
-    }
-  end
   def kill_menu
     {
         :title => "Exit",
@@ -81,21 +55,21 @@ class DiscoverMainMenu < MenuScreen
     m
   end
 
-  attr_accessor :eatme
-
-  def test(title)
-    puts "Test #{title}"
-    if title == "Eatme 4"
-      self.eatme = !eatme
-      puts "eatme == #{eatme}"
-      update_menu_data
-    end
+  def discoverScreen=(ds)
+    @discoverScreen = WeakRef.new(ds)
   end
+
   def exit_now(title)
-    puts "Exit #{title}"
+   #puts "Exit #{title}"
   end
 
   def busme(title)
-    puts "BUSME #{title}"
+   #puts "BUSME #{title}"
+    case title
+      when "Select"
+      when "Select As Default"
+      when "Remove As Default"
+
+    end
   end
 end

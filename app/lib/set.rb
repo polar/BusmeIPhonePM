@@ -10,7 +10,7 @@ class Set
   end
 
   def add(a)
-    self.nnset.addObject(a)
+    self.nsset.addObject(a)
   end
 
   alias_method :<<, :add
@@ -36,6 +36,10 @@ class Set
 
   def intersect?(a)
     self.nsset.intersectsSet(a.nsset)
+  end
+
+  def empty?
+    self.nsset.count == 0
   end
 
 end

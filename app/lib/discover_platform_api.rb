@@ -16,14 +16,14 @@ class DiscoverPlatformApi < Api::DiscoverAPIVersion1
   end
 
   def xmlParse1(data)
-    puts "IM CALLING YOU!!!"
-    puts "data #{data.to_s}"
-    puts "xmlParse(#{data.getContent.to_s})"
+    #puts "IM CALLING YOU!!!"
+    #puts "data #{data.to_s}"
+    #puts "xmlParse(#{data.getContent.to_s})"
     return APITAG_DISCOVER.tap do |x|
-      puts x
+      #puts x
     end if /<API/ =~ data.getContent.to_s
     return APITAG_MASTERS.tap do |x|
-      puts x
+      #puts x
     end
   end
 end

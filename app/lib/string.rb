@@ -2,7 +2,7 @@
 String.class_eval do
 
   def encode(*args)
-    puts "Encode(#{args.inspect}) '#{self}'"
+    PM.logger.info "Encode(#{args.inspect}) '#{self}'"
     if self == '>'
       return ">"
     end

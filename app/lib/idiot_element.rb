@@ -7,7 +7,7 @@ class APITag < Api::Tag
   def initialize(args)
     self.childNodes = []
     args.each do |n, v|
-      puts "#{n}= #{v}"
+     #puts "#{n}= #{v}"
       self.send("#{n}=", v)
     end
 #    puts "Initialized #{self.to_s}"

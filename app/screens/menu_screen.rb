@@ -37,7 +37,7 @@ class MenuScreen < PM::TableScreen
     @menus = []
     @table_cells = []
     menu_data.each do |cell|
-      puts "Make Menu #{cell[:menu].inspect}"
+      PM.logger.info "Make Menu #{cell[:menu].inspect}"
       if cell[:menu]
         m = make_menu(self, cell[:title], cell[:menu])
         @table_cells << { title: cell[:title], action: :open_menu, arguments: m, accessory_type: :disclosure_indicator}
@@ -105,14 +105,14 @@ class MenuScreen < PM::TableScreen
   end
 
   def cancel
-    puts "Cancel"
+    PM.logger.info "Cancel"
     p = self
     while p.parent != nil
-      puts "cancel #{p}"
+      PM.logger.info "cancel #{p}"
       p.close
       p = p.parent
     end
-    puts "Closing #{p}"
+    PM.logger.info "Closing #{p}"
     p.close
   end
 

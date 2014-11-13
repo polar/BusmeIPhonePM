@@ -10,13 +10,15 @@ Utils::ScreenPathUtils.class_eval do
 
   def self.toClippedScreenPath(projectedPath, projection)
 
-    puts "IPhone:toClippedScreenPath(#{projectedPath.length} points) on #{projection}"
+    #puts "IPhone:toClippedScreenPath(#{projectedPath.length} points) on #{projection}"
     rect = projection.screenRect
     path = Integration::Path.new
     coords = Integration::Point.new
     for point in projectedPath
       projection.translatePoint(point, coords)
-      # The iPhone, this is actually faster.
+      # For the iPhone, just placing the point on the path is actually faster than deciding
+      # whether it is in the MapRect of the projection to
+      # draw the line. See the Android code for example.
       path.lineTo(coords.x,coords.y)
     end
     path

@@ -34,11 +34,11 @@ class BusmeSiteView < MKOverlayView
     puts "ZoomScale #{zoomscale} ZoomLevel #{Math.log2(zoomscale)}"
     mpoint = MKMapPointForCoordinate(overlay.coordinate)
     cgpoint = pointForMapPoint(mpoint)
-    puts "MapRect: #{printRect(overlay.boundingMapRect)}"
+   #puts "MapRect: #{printRect(overlay.boundingMapRect)}"
     p = Projection.new(self, mapRect, zoomscale)
     cgrect = rectForMapRect(overlay.boundingMapRect)
-    puts "CGRect: #{printRect(cgrect)}"
-    puts "TGRect: #{printRect(translate(overlay.boundingMapRect, p))}"
+   #puts "CGRect: #{printRect(cgrect)}"
+   #puts "TGRect: #{printRect(translate(overlay.boundingMapRect, p))}"
     CGContextSaveGState(context)
     CGContextSetLineWidth(context, 2.0/zoomscale)
     CGContextSetFillColorWithColor(context, UIColor.purpleColor.cgcolor(0.5))
@@ -97,25 +97,25 @@ class BusmeSiteView < MKOverlayView
         scale = 1.0
         scaleMtx = CGAffineTransformMakeScale(scale, scale)
         hotspot = [locator.hotspot.x, locator.hotspot.y]
-        puts "Applying CGPoint Affine Transpform"
+       #puts "Applying CGPoint Affine Transpform"
         hsPoint = CGPointApplyAffineTransform(CGPointMake(hotspot[0], hotspot[1]), scaleMtx)
-        puts "Drawing locator inmage"
+       #puts "Drawing locator inmage"
         locator.image.drawInRect(imageRect)
         #CGContextDrawImage(context, imageRect, locator.image)
         if locator.arrow
-          puts "Drawing locator arrow"
+         #puts "Drawing locator arrow"
           locator.arrow.drawInRect(imageRect)
           #CGContextDrawImage(context, imageRect, locator.arrow)
         end
-        puts "Getting Image"
+       #puts "Getting Image"
         icon = UIGraphicsGetImageFromCurrentImageContext()
-        puts "Ending Context with #{icon} #{icon.CGImage}"
+       #puts "Ending Context with #{icon} #{icon.CGImage}"
         UIGraphicsEndImageContext()
 
         x = point.x - hsPoint.x
         y = point.y - hsPoint.y
         imageRect.origin = CGPointMake(x, y)
-        puts "drawing icon at #{[x, y]}"
+       #puts "drawing icon at #{[x, y]}"
         #icon.drawAtPoint(CGPointMake(x,y))
         #context = CGContextGetCurrentContext
         CGContextDrawImage(cgContext, imageRect, icon.CGImage)

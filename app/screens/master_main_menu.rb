@@ -1,18 +1,32 @@
 class MasterMainMenu < MenuScreen
 
+  attr_accessor :mainController
   attr_accessor :masterController
   attr_accessor :masterMapScreen
 
   def self.newMenu(args)
+    mainController = args.delete :mainController
     masterMapScreen = args.delete :masterMapScreen
     masterController = args.delete :masterController
     m = self.new(args)
     m.masterMapScreen = masterMapScreen
     m.masterController = masterController
+    m.mainController = mainController
     m.after_init
     m
   end
 
+  def mainController=(mc)
+    @mainController = WeakRef.new(mc)
+  end
+
+  def masterController=(mc)
+    @masterController = WeakRef.new(mc)
+  end
+
+  def masterMapScreen(ms)
+    @masterMapScreen = WeakRef.new(ms)
+  end
 
   def reporting_menu
     {
@@ -126,44 +140,56 @@ class MasterMainMenu < MenuScreen
   end
 
   def report(title)
-    puts "REPORT #{title}"
+   #puts "REPORT #{title}"
   end
 
   def busme(title)
-    puts "Busme #{title}"
+   #puts "Busme #{title}"
+    case title
+      when "Select"
+        mainController.uiEvents.postEvent("Main:select")
+      when "Select As Default"
+      when "Remove As Default"
+    end
   end
 
   def nearby(title)
-    puts "Neaby #{title}"
+   #puts "Neaby #{title}"
     case title
       when "Show All"
         masterController.journeyVisibilityController.setNearByState(false)
+        masterController.api.uiEvents.postEvent("VisibilityChanged")
       when "Only within 2000 feet"
         masterController.journeyVisibilityController.nearByDistance = 2000
         masterController.journeyVisibilityController.setNearByState(true)
+        masterController.api.uiEvents.postEvent("VisibilityChanged")
       when "Only within 1000 feet"
         masterController.journeyVisibilityController.nearByDistance = 1000
         masterController.journeyVisibilityController.setNearByState(true)
+        masterController.api.uiEvents.postEvent("VisibilityChanged")
       when "Only within 500 feet"
         masterController.journeyVisibilityController.nearByDistance = 500
         masterController.journeyVisibilityController.setNearByState(true)
+        masterController.api.uiEvents.postEvent("VisibilityChanged")
     end
     update_menu_data
   end
 
   def active(title)
     state = masterController.journeyVisibilityController.getCurrentState
-    puts "Active #{title}"
+   #puts "Active #{title}"
     case title
       when "Show All"
-        if state.onlyAcitve
+        if state.onlyActive
           masterController.journeyVisibilityController.setOnlyActiveState(false)
+          masterController.api.uiEvents.postEvent("VisibilityChanged")
           update_menu_data
         end
 
       else
         if not state.onlyActive
           masterController.journeyVisibilityController.setOnlyActiveState(true)
+          masterController.api.uiEvents.postEvent("VisibilityChanged")
           update_menu_data
         end
     end

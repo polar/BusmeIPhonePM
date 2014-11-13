@@ -9,5 +9,9 @@ module Platform
       latDelta = (nw.y - se.y).abs
       @boundingMapRect = MKMapRectMake(nw.x, nw.y, lonDelta, latDelta)
     end
+
+    def journeyDisplayController=(jdc)
+      @journeyDisplayController = WeakRef.new(jdc)
+    end
   end
 end
