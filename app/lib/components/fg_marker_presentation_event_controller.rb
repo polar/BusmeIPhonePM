@@ -11,11 +11,13 @@ class FGMarkerPresentationEventController < Platform::FG_MarkerPresentationEvent
 
   def presentMarker(eventData)
     marker = eventData.marker_info
-    puts "FGMarkerPresentation. presentMarker(#{marker.inspect})"
-    m = UIMarker.markerWith(marker)
-    loc = CLLocationCoordinate2DMake(marker.point.latitude, marker.point.longitude)
-    # TODO: NEED TO Translate infor to a hash.
-    a = PM::MapScreenAnnotation.new(marker)
-    masterMapScreen.add_annotation a
+    PM.logger.info "FGMarkerPresentation. presentMarker(#{marker.inspect})"
+    masterMapScreen.addMarker(marker)
+  end
+
+  def abandonMarker(eventData)
+    marker = eventData.marker_info
+    PM.logger.info "FGMarkerPresentation. abandonMarker(#{marker.inspect})"
+    #masterMapScreen.removeMarker(marker)
   end
 end
