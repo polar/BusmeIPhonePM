@@ -38,6 +38,7 @@ class MasterMapScreen < ProMotion::MapScreen
   attr_accessor :routes_view
   attr_accessor :tabButton
   attr_accessor :fgBannerPresentationEventController
+  attr_accessor :fgMarkerPresentationEventController
 
   def self.newScreen(args)
    #puts "Initialize Busme Screen"
@@ -72,7 +73,7 @@ class MasterMapScreen < ProMotion::MapScreen
 
     # We need to hold a reference so it doesn't go away.
     self.fgBannerPresentationEventController = FGBannerPresentationEventController.new(masterController.api, self)
-
+    self.fgMarkerPresentationEventController = FGMarkerPresentationEventController.new(masterController.api, self)
 
     self.routes_view = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
     view.addSubview(routes_view.view)
@@ -226,4 +227,88 @@ class MasterMapScreen < ProMotion::MapScreen
                                 masterMapScreen: self)
   end
 
+  def mapView(map_view, viewForAnnotation: annotation)
+    PM.logger.info "MasterMapScreen mapvView viewfor Annotation #{annotation}"
+    MarkerAnnotationView.get(annotation)
+
+  end
+
+  def addMarker(marker)
+    PM.logger.info "MasterMapScreen addMarker #{marker}"
+    add_annotation(marker)
+  end
+
+  def removeMarker(marker)
+    @promotion_annotation_data.each do |annotation|
+      if annotation.markerInfo.id = marker.id
+        self.view.removeAnnotation(annotation)
+      end
+    end
+  end
+
+  def add_annotation(annotation)
+    @promotion_annotation_data << MarkerAnnotation.new(annotation)
+    self.view.addAnnotation @promotion_annotation_data.last
+  end
+
+  def add_annotations(annotations)
+    @promotion_annotation_data = Array(annotations).map{|a| MarkerAnnotation.new(a)}
+    self.view.addAnnotations @promotion_annotation_data
+  end
+
+end
+
+class MarkerAnnotation
+  attr_accessor :markerInfo
+
+  def initialize(markerInfo)
+    self.markerInfo = markerInfo
+  end
+
+  def coordinate
+    CLLocationCoordinate2DMake(markerInfo.point.latitude, markerInfo.point.longitude)
+  end
+
+  def title
+    markerInfo.title
+  end
+
+  def subtitle
+    nil
+  end
+end
+
+class MarkerAnnotationView <  MKAnnotationView
+  @@count = 0
+  def self.get(marker)
+    @@count += 1
+    PM.logger.info "MarkerAnnoationView.get #{marker.inspect} #{@@count}"
+    mv = self.alloc.initWithAnnotation(marker, reuseIdentifier:"Marker#{@@count}")
+    mv.setup
+    mv
+  end
+
+  def markerInfo
+    annotation.markerInfo
+  end
+
+  def centerOffset
+    # The damn documentation says that positive values "move" down and to the right.
+    # and negative values "move" up and to the left. I guess that depends on your
+    # perspective. We need to move the view so that the coordinate is at the
+    # bottom left, which I would think means move the picutre from its intended
+    # point up half the height and to the right half the width, i.e. negative, positive.
+    # So, I don't really know what the documentation's logical
+    # perspective is, but it's the opposite. And it still looks off.
+    point = CGPoint.new(self.size.width/2, 0 - self.size.height/2)
+    puts "MarkerEAnnotationView.centerOffset. #{self.size.inspect} offset #{point.inspect}"
+    point
+  end
+
+  attr_accessor :markerView
+  def setup
+    self.markerView = UIMarker.markerWith(markerInfo)
+    self.size = markerView.size
+    markerView.add(self, :at => CGPoint.new(0,0))
+  end
 end

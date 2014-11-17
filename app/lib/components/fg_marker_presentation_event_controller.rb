@@ -18,6 +18,6 @@ class FGMarkerPresentationEventController < Platform::FG_MarkerPresentationEvent
   def abandonMarker(eventData)
     marker = eventData.marker_info
     PM.logger.info "FGMarkerPresentation. abandonMarker(#{marker.inspect})"
-    #masterMapScreen.removeMarker(marker)
+    masterMapScreen.removeMarker(marker)
   end
 end

@@ -8,7 +8,8 @@ end
 
 class MainController < Platform::MainController
   def instantiateMasterController(args)
-   #puts "Creating new Master Controller"
-    MasterController.new(args)
+    puts "Creating new Master Controller"
+    MasterController.new(args).tap do |mc|
+    end
   end
 end
