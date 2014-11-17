@@ -6,6 +6,7 @@ class BannerTimer
     self.masterController = args[:masterController]
     self.pleaseStop = true
     masterController.api.bgEvents.registerForEvent("Marker:roll", self)
+    masterController.api.bgEvents.registerForEvent("MasterMessage:roll", self)
   end
 
   def start
@@ -29,6 +30,7 @@ class BannerTimer
     # we do the adds/removes, and roll on the single threaded background thread.
     # The roll will post UI Events to present and abandon markers.
     masterController.api.bgEvents.postEvent("Marker:roll", forced)
+    masterController.api.bgEvents.postEvent("MasterMessage:roll")
     5.seconds.later do
       if ! pleaseStop
         doBannerUpdate(false)
@@ -40,6 +42,8 @@ class BannerTimer
     case event.eventName
       when "Marker:roll"
         masterController.markerPresentationController.roll(event.eventData)
+      when "MasterMessage:roll"
+        masterController.masterMessageController.roll(Utils::Time.current)
     end
   end
 end

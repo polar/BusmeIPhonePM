@@ -39,6 +39,7 @@ class MasterMapScreen < ProMotion::MapScreen
   attr_accessor :tabButton
   attr_accessor :fgBannerPresentationEventController
   attr_accessor :fgMarkerPresentationEventController
+  attr_accessor :fgMasterMessagePresentationEventController
 
   def self.newScreen(args)
    #puts "Initialize Busme Screen"
@@ -74,6 +75,7 @@ class MasterMapScreen < ProMotion::MapScreen
     # We need to hold a reference so it doesn't go away.
     self.fgBannerPresentationEventController = FGBannerPresentationEventController.new(masterController.api, self)
     self.fgMarkerPresentationEventController = FGMarkerPresentationEventController.new(masterController.api, self)
+    self.fgMasterMessagePresentationEventController = FGMasterMessagePresentationEventController.new(masterController.api, self)
 
     self.routes_view = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
     view.addSubview(routes_view.view)
