@@ -14,7 +14,7 @@ class FGBannerPresentationEventController < Platform::FG_BannerPresentationEvent
     if currentUIBanner
       dismissBanner(currentUIBanner.bannerInfo)
     end
-    self.currentUIBanner = UIBanner.alloc.initWith(bannerInfo)
+    self.currentUIBanner = UIBanner.alloc.initWith(bannerInfo, masterMapScreen)
     currentUIBanner.origin = [0, mapViewBounds.size.height - currentUIBanner.bounds.size.height]
     PM.logger.info "Adding banner #{currentUIBanner}"
     masterMapScreen.view.addSubview(currentUIBanner)
@@ -31,6 +31,7 @@ class FGBannerPresentationEventController < Platform::FG_BannerPresentationEvent
         @removeView.slide_out
       end.and_then do
         @removeView.removeFromSuperview
+        @removeView.masterMapScreen = nil
       end.start
       self.currentUIBanner = nil
     end

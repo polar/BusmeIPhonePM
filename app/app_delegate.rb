@@ -104,7 +104,7 @@ class AppDelegate < PM::Delegate
   end
 
   def onBuspassEvent(event)
-    #PM.logger.info "AppDelegate: Got Event #{event.eventName}"
+    PM.logger.info "AppDelegate: Got Event #{event.eventName}"
     case event.eventName
       when "Main:select"
         evd = event.eventData
@@ -123,15 +123,12 @@ class AppDelegate < PM::Delegate
         if evd.return && evd.return == "defaultMaster"
           master = evd.data[:master]
           if master
-            alertView = showLookingDialog
-            eventData.uiData = alertView
             masterApi = IPhone::Api.new(master)
             eventData = Platform::MasterEventData.new(
               :data => {
                 :master => master,
                 :masterApi => masterApi
               },
-              :uiData => alertView
             )
             mainController.bgEvents.postEvent("Main:Master:init", eventData)
           end
@@ -166,7 +163,7 @@ class AppDelegate < PM::Delegate
         alertView = showMasterDialog(masterController.master)
         eventsController.register(masterController.api)
         PM.logger.info "AppDelegate: closing Discover Screen"
-        discoverScreen.close
+        discoverScreen.close if discoverScreen
         PM.logger.info "AppDelegate: closed Discover Screen"
         self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
         PM.logger.info "AppDelegate: Opening Master Map Screen"
@@ -287,6 +284,22 @@ class AppDelegate < PM::Delegate
     #PM.logger.info "Setting up #{c.coordinate.latitude} #{c.coordinate.longitude}"
     BubbleWrap::Location.locationManager(m, didUpdateToLocation: c, fromLocation: @last_location)
     @last_location = c
+  end
+
+  def applicationDidBecomeActive(application)
+    puts "#{self.class.name}:#{self.__method__}"
+  end
+  def applicationWillResignActive(application)
+    puts "#{self.class.name}:#{self.__method__}"
+  end
+  def applicationDidEnterBackground(application)
+    puts "#{self.class.name}:#{self.__method__}"
+  end
+  def applicationWillEnterForeground(application)
+    puts "#{self.class.name}:#{self.__method__}"
+  end
+  def applicationWillTerminate(application)
+    puts "#{self.class.name}:#{self.__method__}"
   end
 
   def to_s

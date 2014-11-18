@@ -1,6 +1,9 @@
 class MasterMessageWebScreen < PM::WebScreen
 
-  attr_writer :title
+  def screen_init(args)
+    @title = args[:title]
+    @content = NSURL.URLWithString(args[:url]) if args[:url]
+  end
 
   def title
     @title

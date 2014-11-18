@@ -62,6 +62,7 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def after_init
+    PM.logger.warn "MasterMapScreen:after_init: #{masterController.master.to_s}"
     self.title = masterController.master.title
     masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
     masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)

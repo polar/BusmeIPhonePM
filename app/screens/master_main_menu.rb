@@ -121,7 +121,6 @@ class MasterMainMenu < MenuScreen
     }
   end
 
-
   def cancel_menu
     {
         :title => "Cancel",
@@ -144,12 +143,28 @@ class MasterMainMenu < MenuScreen
   end
 
   def busme(title)
-   #puts "Busme #{title}"
+    puts "Busme #{title}"
     case title
       when "Select"
         mainController.uiEvents.postEvent("Main:select")
-      when "Select As Default"
+      when "Set as Default"
+        if mainController && masterController
+          str = mainController.busmeConfigurator.saveAsDefaultMaster(masterController.master)
+          if str.nil?
+            BW::App.alert("Error", :message => "Could not save #{masterController.master.name} as default transit system")
+          else
+            BW::App.alert("Done", :message => "#{masterController.master.name} is now your default transit system")
+          end
+        end
       when "Remove As Default"
+        if mainController
+          mainController.busmeConfigurator.removeDefaultMaster
+          if masterController
+            BW::App.alert("Done", :message => "#{masterController.master.name} is no longer your default transit system")
+          else
+            BW::App.alert("Done", :message => "You now have no default transit system")
+          end
+        end
     end
   end
 

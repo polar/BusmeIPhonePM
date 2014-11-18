@@ -15,8 +15,9 @@ class MasterMessageViewController < UIViewController
                                                      delegate:self,
                                                      cancelButtonTitle: "OK",
                                                      otherButtonTitles: nil)
+    # Instead we set the other button titles after creation
     index = 1
-    if true || masterMessage.goUrl && !masterMessage.goUrl.empty?
+    if masterMessage.goUrl && !masterMessage.goUrl.empty?
       view.addButtonWithTitle("Go")
       self.buttonIndexes[index] = :go
       index += 1
@@ -41,9 +42,10 @@ class MasterMessageViewController < UIViewController
     case buttonIndexes[index]
       when :go
         masterMessage.onDismiss(false, Utils::Time.current)
-        webScreen = MasterMessageWebScreen.new(:nav_bar => true)
-        webScreen.title = masterMessage.title
-        webScreen.open_url("http://busme.us")
+        webScreen = MasterMessageWebScreen.new(
+            :title => masterMessage.title,
+            :url => masterMessage.goUrl,
+            :nav_bar => true)
         masterMapScreen.open webScreen
       when :remind
         masterMessage.onDismiss(true, Utils::Time.current)

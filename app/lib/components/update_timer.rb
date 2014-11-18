@@ -44,7 +44,7 @@ class UpdateTimer
     case eventData.action
       when U_FINISH
         if !pleaseStop
-          updateRate = masterController.api.updateRate/1000.0 || 10
+          updateRate = (masterController.api.updateRate || 1000)/1000.0 || 10
          #puts "UpdatetTimer: schedule #{updateRate}"
           updateRate.seconds.later do
            #puts "UpdateTimer: update pleaseStop #{@pleaseStop}"

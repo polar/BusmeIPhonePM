@@ -4,6 +4,7 @@ gem "rake"
 gem "ProMotion"#, github: "clearsightstudio/ProMotion"
 #gem "motion-kit" #, "~> 0.10.1"
 gem "sugarcube", :require => ["sugarcube-nsuserdefaults",
+                              "sugarcube-attributedstring",
                               "sugarcube-constants",
                               "sugarcube-animations",
                               "sugarcube-notifications",

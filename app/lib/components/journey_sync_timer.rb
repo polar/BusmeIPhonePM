@@ -39,7 +39,7 @@ class JourneySyncTimer
     case eventData.action
       when P_DONE
         if !pleaseStop
-          updateRate = masterController.api.syncRate/1000.0 || 1
+          updateRate = (masterController.api.syncRate || 1000)/1000.0 || 1
           updateRate.seconds.later do
             doSync(false) if !@pleaseStop
           end

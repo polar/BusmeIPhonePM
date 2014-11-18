@@ -166,7 +166,7 @@ class RoutesView < PM::TableScreen
     data = []
     jds.each do |jd|
         data << {
-            :title => jd.route.name,
+            #:title => jd.route.name,
             :action => :hit,
             :long_press_action => :longhit,
             :arguments => jd,
