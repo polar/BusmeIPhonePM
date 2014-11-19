@@ -1,5 +1,13 @@
 class RouteCell < PM::TableViewCell
 
+  class Eatme < UIView
+    def viewForBaselineLayout
+      subviews.each do |v|
+        bottom = v.viewForBaselineLayout
+      end
+    end
+  end
+
   attr_accessor :journeyDisplay
   attr_accessor :time_format
 
@@ -18,98 +26,149 @@ class RouteCell < PM::TableViewCell
   attr_accessor :dirLabel
   attr_accessor :routeCodeLabel
   attr_accessor :vidLabel
+  attr_accessor :timesLabel
+  attr_accessor :labelFontSize
+  attr_accessor :labelFont
+  attr_accessor :nameCenterView
 
   def initWithStyle(style, reuseIdentifier: id)
     super
+    # Forces a recalculation
+    contentView.bounds = CGRect.new([0,0],[99999,99999])
+
+    # Our relative Size constants
+    self.labelFontSize = UIFont.labelFontSize - 4
+    self.labelFont = UIFont.systemFontOfSize(labelFontSize)
+
+    # We get rid of these subviews from the standard TableCellView because they have constraints we don't like
     imageView.removeFromSuperview
     textLabel.removeFromSuperview
     detailTextLabel.removeFromSuperview
+
+    # Set up the subviews.
+    # icon Route VID Name/Dir Times
     self.iconView = UIImageView.alloc.initWithFrame([[0,0],[0,0]])
+
+    # Route/Dir
     self.nameView = UIView.alloc.initWithFrame([[0,0],[0,0]])
     self.routeNameLabel = UILabel.alloc.initWithFrame([[0,0],[0,0]])
     self.dirLabel = UILabel.alloc.initWithFrame([[0,0],[0,0]])
+    dirLabel.textAlignment = NSTextAlignmentRight
+
     nameView.addSubview(routeNameLabel)
     nameView.addSubview(dirLabel)
-    contentView.addSubview(iconView)
-    contentView.addSubview(nameView)
+
+    # So we can center Name/Dir vertically
+    self.nameCenterView = UIView.alloc.initWithFrame([[0,0],[0,0]])
+    nameCenterView.addSubview(nameView)
+
     self.routeCodeLabel = UILabel.alloc.initWithFrame([[0,0],[0,0]])
+    routeCodeLabel.textAlignment = NSTextAlignmentRight
     self.vidLabel = UILabel.alloc.initWithFrame([[0,0],[0,0]])
+    self.timesLabel = UILabel.alloc.initWithFrame([[0,0],[0,0]])
+    timesLabel.numberOfLines = 0
+
+    contentView.addSubview(iconView)
     contentView.addSubview(routeCodeLabel)
     contentView.addSubview(vidLabel)
-    routeCodeLabel.font = self.routeCodeLabel.font.fontWithSize(10)
-    vidLabel.font = self.vidLabel.font.fontWithSize(10)
+    contentView.addSubview(nameCenterView)
+    contentView.addSubview(timesLabel)
 
-    Motion::Layout.new do |layout|
-      layout.view self.nameView
-      layout.subviews "title" => routeNameLabel, "dir" => dirLabel
-      layout.vertical "|[title][dir]|"
-      layout.horizontal "|[title]-|"
-      layout.horizontal "|[dir]-|"
-    end
+    views =  { "title" => routeNameLabel, "dir" => dirLabel}
+    routeNameLabel.translatesAutoresizingMaskIntoConstraints = false
+    dirLabel.translatesAutoresizingMaskIntoConstraints = false
+    constraints = []
+    constraints << NSLayoutConstraint.constraintsWithVisualFormat("V:|[title][dir]|",
+                                                                  options:NSLayoutFormatAlignAllLeft, metrics:{}, views:views)
+    constraints << NSLayoutConstraint.constraintsWithVisualFormat("H:|[title]|",
+                                                                  options:0, metrics:{}, views:views)
+    nameView.addConstraints(constraints.flatten)
+    
+    views = { "name" => nameView, "superview" => nameCenterView}
+    nameView.translatesAutoresizingMaskIntoConstraints = false
+    constraints = []
+    constraints << NSLayoutConstraint.constraintsWithVisualFormat("H:[superview]-(<=1)-[name]",
+                                                                  options: NSLayoutFormatAlignAllCenterY, metrics: {}, views: views)
+    constraints << NSLayoutConstraint.constraintsWithVisualFormat("H:|[name]|",
+                                                                  options:0, metrics:{}, views:views)
+    nameCenterView.addConstraints(constraints.flatten)
 
-    Motion::Layout.new do |layout|
-      layout.view self.contentView
-      layout.subviews "image" => iconView, "name" => nameView, "code" => routeCodeLabel, "vid" => vidLabel
-      layout.vertical "|-[image(16)]-|"
-      layout.vertical "|[code]|"
-      layout.vertical "|[vid]|"
-      layout.vertical "|[name]|"
-      layout.horizontal "|-8-[image(16)]-8-[code(30)]-8-[vid(20)]-8-[name]|"
-    end
+    timesLabel.translatesAutoresizingMaskIntoConstraints = false
+    iconView.translatesAutoresizingMaskIntoConstraints = false
+    routeCodeLabel.translatesAutoresizingMaskIntoConstraints = false
+    vidLabel.translatesAutoresizingMaskIntoConstraints = false
+    nameCenterView.translatesAutoresizingMaskIntoConstraints = false
+
+    views = {"times" => timesLabel, "image" => iconView, "name" => nameCenterView, "code" => routeCodeLabel, "vid" => vidLabel}
+    constraints = []
+    constraints << NSLayoutConstraint.constraintsWithVisualFormat("H:|-8-[image(16)]-8-[code(30)]-4-[vid(30)]-4-[name]-[times(40)]|",
+                                                                  options: NSLayoutFormatAlignAllCenterY, metrics:{}, views:views)
+    constraints << NSLayoutConstraint.constraintsWithVisualFormat("V:|[name]|",
+                                                                  options:NSLayoutFormatAlignAllLeft, metrics:{}, views:views)
+    contentView.addConstraints(constraints.flatten)
     self
   end
 
   def will_display
-    puts "RouteCell(#{data_cell[:cell_identifier]}) will_display #{journeyDisplay}"
     iconView.image = UIImage.imageNamed(ICONS[journeyDisplay.getIcon-1])
     route = journeyDisplay.route
-    text = route.code.attrd(NSFontAttributeName => self.routeNameLabel.font.fontWithSize(12))
-    rect = text.boundingRectWithSize(CGSizeMake(100,20), options: NSStringDrawingUsesLineFragmentOrigin, context: nil)
+
+    text = route.code.attrd
+    # Apparently you have to do color before font.
+    text = text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
+    text = text.font(labelFont)
     routeCodeLabel.setAttributedText text
-    routeCodeLabel.size = rect.size
-    text = route.name.attrd(NSFontAttributeName => self.routeNameLabel.font.fontWithSize(12))
-    rect = text.boundingRectWithSize(CGSizeMake(100,20), options: NSStringDrawingUsesLineFragmentOrigin, context: nil)
-    routeNameLabel.setAttributedText text
-    routeNameLabel.size = rect.size
-    puts "RouteCodeLabel.size #{routeCodeLabel.size.inspect} RouteNameLabel.size #{routeNameLabel.size.inspect}"
+    routeCodeLabel.size = text.cgSize(CGSize.new(100,200))
+
     if route.isJourney?
-      vidLabel.text = route.vid
-      #self.routeNameLabel.font = self.routeNameLabel.font.fontWithSize(12)
-      if journeyDisplay.isNameHighlighted?
-        self.routeNameLabel.color = UIColor.redColor
-      else
-        self.routeNameLabel.color = UIColor.blackColor
-      end
+      text = route.name.attrd
+      text = text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
+      text = text.font(labelFont, labelFontSize - 1)
+      routeNameLabel.setAttributedText text
+
+      routeNameLabelSize = text.cgSize(CGSize.new(200,200))
+
+      text = (route.vid || "1235").attrd
+      text = text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
+      text = text.font(labelFont)
+      vidLabel.setAttributedText text
+
       self.dirLabel.hidden = false
-      self.dirLabel.font = self.dirLabel.font.fontWithSize(10)
-      dirLabel.text = route.direction
-      text = route.direction.attrd(NSFontAttributeName => self.routeNameLabel.font.fontWithSize(10))
-      rect = text.boundingRectWithSize(CGSizeMake(100,20), options: NSStringDrawingUsesLineFragmentOrigin, context: nil)
+      text = route.direction.attrd
+      text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
+      text = text.font(labelFont, labelFontSize - 4)
       dirLabel.setAttributedText text
-      dirLabel.size = rect.size
+      dirLabelSize = text.cgSize(CGSize.new(200,200))
+
+      routeNameLabel.size = routeNameLabelSize
+      dirLabel.size = dirLabelSize
+
+      vidLabel.hidden = false
+
+      puts "NameLabel.size #{routeNameLabelSize.inspect} DirLabel.size #{dirLabelSize.inspect} NameView.size #{nameView.size.inspect}"
       label = route.getStartTime.strftime(time_format)
       label += "\n"
       label += route.getEndTime.strftime(time_format)
-      #data_cell[:subtitle] = direction
-      times = UILabel.new(label, UIFont.systemFontOfSize(8), 8)
-      times = UILabel.new(label, UIFont.systemFontOfSize(8), 8)
-      times.numberOfLines = 0
-      f = times.frame
-      f.size = [40,20]
-      times.frame = f
-      times.fit_to_size(12)
-      data_cell[:accessory] = {
-          :view => times
-      }
-      #set_subtitle
-      set_accessory_view
+      text = label.attrd
+      text = text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
+      text = text.font(labelFont, labelFontSize - 6)
+      timesLabel.setAttributedText text
+      timesLabel.size = [40,60]
+      timesLabel.fit_to_size(labelFontSize - 4)
     else
-      self.routeNameLabel.text = route.name
-      self.routeNameLabel.font = self.routeNameLabel.font.fontWithSize(12)
+      text = route.name.attrd
+      text = text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
+      text = text.font(labelFont)
+      routeNameLabelSize = text.cgSize(CGSize.new(200,200))
+      self.routeNameLabel.setAttributedText text
+      # routeNameLabel.frame = [[0,0],routeNameLabelSize]
+      routeNameLabel.size = routeNameLabelSize
+      self.dirLabel.setAttributedText nil
       self.dirLabel.hidden = true
-      data_cell[:accessory] = nil
-      #set_subtitle
-      set_accessory_view
+      self.dirLabel.size = [0,0]
+      timesLabel.setAttributedText nil
+      vidLabel.hidden = true
     end
+    nameCenterView.size.height = nameView.size.height + dirLabel.size.height
   end
 end

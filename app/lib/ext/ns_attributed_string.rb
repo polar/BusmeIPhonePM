@@ -1,11 +1,11 @@
 NSAttributedString.class_eval do
 
-  def fontSize(size)
-    with_attributes({ NSFontAttributeName => font.fontWithSize(size)})
-  end
-
-  def font(font)
-    with_attributes({ NSFontAttributeName => font })
+  def font(font, size = nil)
+    if size.nil?
+      with_attributes({ NSFontAttributeName => font })
+    else
+      with_attributes({ NSFontAttributeName => font.fontWithSize(size)})
+    end
   end
 
   def color(color)
@@ -17,7 +17,7 @@ NSAttributedString.class_eval do
     with_attributes({ NSBackgroundColorAttributeName => color })
   end
 
-  def size(constrain)
+  def cgSize(constrain)
     s = SugarCube::CoreGraphics::Size(constrain)
     rect = self.boundingRectWithSize(s, options: NSStringDrawingUsesLineFragmentOrigin, context: nil)
     rect.size

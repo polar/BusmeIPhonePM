@@ -67,6 +67,7 @@ class RoutesView < PM::TableScreen
     self.view.on_swipe(:right) do
       slide_out
     end
+    view.rowHeight = 48
     "UIDeviceOrientationDidChangeNotification".add_observer(self, :resizeIt)
   end
 
@@ -108,6 +109,17 @@ class RoutesView < PM::TableScreen
     @view_origin = view.origin
   end
 
+  def tableView(table_view, cellForRowAtIndexPath:index_path)
+    table_view_cell(index_path: index_path).tap do |cell|
+      cell.will_display
+    end
+  end
+
+  def tableView(table_view, heightForRowAtIndexPath:index_path)
+    puts "HeightForRowAtIndexPath #{index_path}"
+    37
+  end
+
   def will_appear
    #puts "RoutesView will appear #{view.superview}"
    #puts "RoutesView will bounds #{view.superview.bounds.inspect}"
@@ -127,6 +139,7 @@ class RoutesView < PM::TableScreen
         @super_frames[:landscape] = CGRectMake(origin.y, origin.x, size.height, size.width)
       end
     end
+    view.rowHeight = 48.0
     tabButton.setup
     resizeAll
   end
