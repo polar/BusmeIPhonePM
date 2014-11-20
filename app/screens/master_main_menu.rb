@@ -44,10 +44,7 @@ class MasterMainMenu < MenuScreen
             },{
                 title: "Logout",
                 action: :report
-            },{
-                title: "Cancel",
-                action: :cancel
-            }
+            },
         ]
     }
   end
@@ -64,9 +61,6 @@ class MasterMainMenu < MenuScreen
                  },{
                      title: "Remove As Default",
                      action: :busme
-                 },{
-                     title: "Cancel",
-                     action: :cancel
                  }]
     }
   end
@@ -133,8 +127,7 @@ class MasterMainMenu < MenuScreen
         reporting_menu,
         busme_transit_menu,
         nearby_menu,
-        active_menu,
-        cancel_menu
+        active_menu
     ]
   end
 

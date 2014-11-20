@@ -16,7 +16,11 @@ module IPhone
         @entity ||= Integration::Http::HttpEntity.new(RWrap.new(result))
       end
       def getStatusLine()
-        @status_line ||= Integration::Http::StatusLine.new(result.operation.response.statusCode, result.operation.responseString)
+        if result.error
+          @status_line ||= Integration::Http::StatusLine.new(result.error.code, result.error.localizedDescription)
+        else
+          @status_line ||= Integration::Http::StatusLine.new(result.operation.response.statusCode, result.operation.responseString)
+        end
       end
     end
     class BWrap
@@ -74,7 +78,7 @@ module IPhone
             @entry.wait
             if result.failure?
               PM.logger.info "HTTP failure on #{url} #{result.inspect}"
-              @result = nil
+              @result = HttpResponse.new(result)
             else
               message = result.body.to_s
               PM.logger.info "HTTP Got #{message}"

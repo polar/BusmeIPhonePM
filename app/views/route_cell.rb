@@ -165,7 +165,7 @@ class RouteCell < PM::TableViewCell
 
     routeNameLabelSize = text.cgSize(CGSize.new(200, 200))
 
-    text = (route.vid || "1235").attrd
+    text = (route.vid || "").attrd
     text = text.fgColor(UIColor.redColor) if journeyDisplay.isNameHighlighted?
     text = text.font(labelFont)
     vidLabel.setAttributedText text

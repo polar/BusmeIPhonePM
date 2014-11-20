@@ -88,6 +88,14 @@ class MasterMapScreen < ProMotion::MapScreen
     routes_view.viewWillAppear(false)
     view.setAutoresizesSubviews(false)
     #routes_view.view.setAutoresizingMask UIViewAutoresizingFlexibleLeftMargin
+    show_user_location
+  end
+
+  def move_to_user_location
+    loc = user_location
+    if loc
+      self.center = { :longitude => loc.longitude, :latitude => loc.latitude, :animated => true}
+    end
   end
 
   def resizeIt

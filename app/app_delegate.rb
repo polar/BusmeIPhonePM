@@ -103,6 +103,44 @@ class AppDelegate < PM::Delegate
     alertView
   end
 
+  attr_accessor :restartOnCancel
+  class RestartOnCancel
+    attr_accessor :app
+    attr_accessor :eventName
+    attr_accessor :eventData
+    def initialize(app, eventName, eventData)
+      self.app = app
+      app.restartOnCancel = self
+      self.eventName = eventName
+      self.eventData = eventData
+    end
+
+    def alertView(alertView, willDismissWithButtonIndex: buttonIndex)
+      puts "RestartOnCancel: alertView will dismiss with #{buttonIndex}"
+      puts "Going to post Main:Init in 5 seconds"
+      5.seconds.later do
+        @app.mainController.bgEvents.postEvent(@eventName, @eventData)
+        @app.restartOnCancel = nil
+        @app = nil
+      end
+    end
+
+    # This method never gets called.
+    def alertViewCancel(alertView)
+      puts "RestartOnCancel: alertViewCancel!"
+    end
+  end
+
+  def errorDialog(title, statusLine, delegate)
+    alertView = UIAlertView.alloc.initWithTitle(title,
+                                                message: statusLine.reasonPhrase,
+                                                delegate: delegate,
+                                                cancelButtonTitle: "OK",
+                                                otherButtonTitles: nil)
+    alertView.show
+    alertView
+  end
+
   def onBuspassEvent(event)
     PM.logger.info "AppDelegate: Got Event #{event.eventName}"
     case event.eventName
@@ -116,7 +154,15 @@ class AppDelegate < PM::Delegate
         mainController.bgEvents.postEvent("Main:Discover:init",
                                           Platform::DiscoverEventData.new(uiData: alertView,
                                                                           data: {discoverApi: discoverApi}))
-        discoverScreen.clear
+        if discoverScreen
+          discoverScreen.clear
+        else
+          self.discoverApi =  IPhone::DiscoverApi.new("http://busme-apis.herokuapp.com/apis/d1/get")
+          self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
+          alertView = showLookingDialog
+          mainController.bgEvents.postEvent("Main:Discover:init",
+                                            Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
+        end
         open discoverScreen
       when "Main:Init:return"
         evd = event.eventData
@@ -148,11 +194,21 @@ class AppDelegate < PM::Delegate
         end
         mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new)
       when "Search:Init:return"
-        loc = configurator.getLastLocation
-        if loc
-          mainController.bgEvents.postEvent("Search:discover", Platform::DiscoverEventData.new(
-              :data => { :lon => loc.longitude, :lat => loc.latitude, :buf => 10000 }
-          ))
+        evd = event.eventData
+        status = evd.return
+        if !status
+          status = Integration::Http::StatusLine.new(500, "Internal App Error, No Api")
+        end
+        if status.is_a?(Integration::Http::StatusLine)
+          # It's an error, restart.
+          errorDialog("Network Error", status, RestartOnCancel.new(self, "Main:init", Platform::MainEventData.new))
+        else
+          loc = configurator.getLastLocation
+          if loc
+            mainController.bgEvents.postEvent("Search:discover", Platform::DiscoverEventData.new(
+                :data => { :lon => loc.longitude, :lat => loc.latitude, :buf => 10000 }
+            ))
+          end
         end
       # The Discover Screen will fire off a "Main:Master:init" event when a master is selected.
       # We catch the return event here on the UI Thread and switch to the master's screen.
@@ -188,13 +244,18 @@ class AppDelegate < PM::Delegate
         if alertView
           alertView.dismissWithClickedButtonIndex(0, animated: true)
         end
-        lastLocation = configurator.getLastLocation
-        if lastLocation
-          mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new())
+        status = evd.return
+        if status.is_a?(Integration::Http::StatusLine)
+          errorDialog("Network Error", status, RestartOnCancel.new(self, "Main:init", Platform::MainEventData.new))
+        else
+          lastLocation = configurator.getLastLocation
+          if lastLocation
+            mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new())
+          end
+          PM.logger.info "SETTING TIMEZONE TO #{mainController.masterController.api.buspass.timezone}"
+          timeZone = NSTimeZone.timeZoneWithName mainController.masterController.api.buspass.timezone
+          NSTimeZone.setDefaultTimeZone(timeZone) if timeZone
         end
-        PM.logger.info "SETTING TIMEZONE TO #{mainController.masterController.api.buspass.timezone}"
-        timeZone = NSTimeZone.timeZoneWithName mainController.masterController.api.buspass.timezone
-        NSTimeZone.setDefaultTimeZone(timeZone) if timeZone
 
       when "JourneySyncProgress"
         evd = event.eventData
@@ -307,6 +368,10 @@ class AppDelegate < PM::Delegate
   end
   def inspect
     to_s
+  end
+
+  def locsyr
+    loc(-76.1315307617188, 43.03726196289)
   end
 
 end

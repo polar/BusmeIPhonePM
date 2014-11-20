@@ -68,6 +68,7 @@ class RoutesView < PM::TableScreen
       slide_out
     end
     view.rowHeight = 48
+    view.tableFooterView = UIView.alloc.initWithFrame(CGRectZero)
     "UIDeviceOrientationDidChangeNotification".add_observer(self, :resizeIt)
   end
 
@@ -171,26 +172,32 @@ class RoutesView < PM::TableScreen
   end
 
   def table_data
-    journeyDisplays = masterController.journeyVisibilityController.getSortedJourneyDisplays
-    jds = journeyDisplays.select do |x|
-      x.isNameVisible?
+    # This method gets called on_load before we are setup.
+    if masterController
+      journeyDisplays = masterController.journeyVisibilityController.getSortedJourneyDisplays
+      jds = journeyDisplays.select do |x|
+        x.isNameVisible?
+      end
+     #puts "RoutesView: update_table_data: #{journeyDisplays.count} displays #{jds.count} visible"
+      data = []
+      jds.each do |jd|
+          data << {
+              #:title => jd.route.name,
+              :action => :hit,
+              :long_press_action => :longhit,
+              :arguments => jd,
+              :cell_class => RouteCell,
+              :cell_style => UITableViewCellStyleSubtitle,
+              :style => {
+                :journeyDisplay => jd,
+                :time_format => masterController.master.time_format
+              }
+          }
+      end
+    else
+      data = []
     end
-   #puts "RoutesView: update_table_data: #{journeyDisplays.count} displays #{jds.count} visible"
-    data = []
-    jds.each do |jd|
-        data << {
-            #:title => jd.route.name,
-            :action => :hit,
-            :long_press_action => :longhit,
-            :arguments => jd,
-            :cell_class => RouteCell,
-            :cell_style => UITableViewCellStyleSubtitle,
-            :style => {
-              :journeyDisplay => jd,
-              :time_format => masterController.master.time_format
-            }
-        }
-    end
+
     [{
         #:title => "Routes",
         :cells => data

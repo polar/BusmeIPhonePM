@@ -1,0 +1,56 @@
+Features That Need to be Implemented
+
+Dialogs for Network Errors
+  Discover Screen.get
+     Done 20-10-2014
+  Master.Init.Screen
+     Done 20-10-2014
+  Update will be silent
+     Perhaps after several weill put up a notification.
+  JourneySyncProgress
+
+
+User Location on Map
+
+NearBy needs implementation
+
+HighLighting Journey needs to bring map locator icon to the top of all others.
+
+on AppDelegate:applicationWillResignActive:
+have application:
+   Save state
+   Stop update, and sync_timer
+
+on AppDelegate:applicationDidEnterBackground:
+   If we have reporting going on, keep it going.
+
+on AppDelegate:applicationWillTerminate:
+   If we have location data, store it.
+
+on AppDelegate:applicationWillEnterForground:
+   Do Sync, and restart update and sync timers
+
+on AppDelegate:applicationDidBecomeActive
+   Nothing?
+
+Reporting/Posting needs to be implemented
+
+Discover remembers last location and fires up immediately from there, if no location
+is available.
+
+Routes View needs indicator when there are no routes.
+
+Routes View needs to shrink to only available in the table screen.
+
+Busme Logo Splash Screen
+
+Login Processing
+
+Marker Message Processing
+
+Master Message Processing (click thrus)
+
+Banner Message Processing (click thrus)
+
+Icon for RouteView Back Button
+
