@@ -20,6 +20,11 @@ class UpdateTimer
     self.pleaseStop = true
   end
 
+  def kill
+    self.pleaseStop = true
+    self.masterController = nil
+  end
+
   def restart
    #puts "UpdateTimer:restart"
     self.pleaseStop = false
@@ -29,7 +34,7 @@ class UpdateTimer
   def doUpdate(forced)
     eatme = Platform::JourneySyncEventData.new({})
     evd = Platform::UpdateEventData.new(isForced: forced)
-    masterController.api.bgEvents.postEvent("Update", evd)
+    masterController.api.bgEvents.postEvent("Update", evd) if masterController
   end
 
   def onBuspassEvent(event)
@@ -43,7 +48,7 @@ class UpdateTimer
   def onProgress(eventData)
     case eventData.action
       when U_FINISH
-        if !pleaseStop
+        if !pleaseStop && masterController
           updateRate = (masterController.api.updateRate || 1000)/1000.0 || 10
          #puts "UpdatetTimer: schedule #{updateRate}"
           updateRate.seconds.later do

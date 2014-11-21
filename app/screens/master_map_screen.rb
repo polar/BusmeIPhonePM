@@ -175,6 +175,7 @@ class MasterMapScreen < ProMotion::MapScreen
       when U_FINISH
         @updateInProgress = false
         activityIndicator.stopAnimating if !@syncInProgress && !@updateInProgress
+        routes_view.update_table_data
     end
   end
 

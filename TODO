@@ -1,8 +1,9 @@
 Features That Need to be Implemented
 
 Dialogs for Network Errors
-  Discover Screen.get
+  Discover Screen.init
      Done 20-10-2014
+  Discover.Screen.discover
   Master.Init.Screen
      Done 20-10-2014
   Update will be silent

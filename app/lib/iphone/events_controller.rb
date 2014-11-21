@@ -1,11 +1,11 @@
 module IPhone
   class EventsController
     attr_accessor :appDelegate
-    attr_accessor :bgEvents
-    attr_accessor :uiEvents
+    attr_accessor :eventControllers
 
     def initialize(args)
       self.appDelegate = args.delete :delegate
+      self.eventControllers = []
 
       @bgQueue = Dispatch::Queue.new("background")
       @bgQueueTime = Time.now
@@ -18,10 +18,21 @@ module IPhone
     end
 
     def register(api)
-      self.uiEvents = api.uiEvents
-      self.bgEvents = api.bgEvents
-      bgEvents.postEventListener = PostEventListener.new(@bgQueue, self.bgEvents)
-      uiEvents.postEventListener = PostEventListener.new(@fgQueue, self.uiEvents)
+      self.eventControllers << api.uiEvents
+      self.eventControllers << api.bgEvents
+      api.bgEvents.postEventListener = PostEventListener.new(@bgQueue, api.bgEvents)
+      api.uiEvents.postEventListener = PostEventListener.new(@fgQueue, api.uiEvents)
+    end
+
+    def unregister(api)
+      if api.uiEvents.postEventListener
+        api.uiEvents.postEventListener.unregister
+        self.eventControllers.delete(api.uiEvents)
+      end
+      if api.bgEvents.postEventListener
+        api.bgEvents.postEventListener.unregister
+        self.eventControllers.delete(api.bgEvents)
+      end
     end
 
     class PostEventListener
@@ -32,6 +43,12 @@ module IPhone
         @queueCount = 0
         @queueSize = 0
       end
+
+      def unregister
+        @dispatchQ = nil
+        @eventQ = nil
+      end
+
       def to_s
         "PostEventListener(#{@dispatchQ},#{@eventQ})"
       end
@@ -45,7 +62,7 @@ module IPhone
          #puts "#{self.to_s}:onPostEvent#{@eventQ}: tdiff #{tdiff} count #{@queueCount} size #{@queueSize}"
          #puts "#{self.to_s}:onPostEvent:rollAll from #{@eventQ} #{@eventQ.eventQ.size} on #{Dispatch::Queue.current}"
          #puts "#{self.to_s}:onPostEvent:rollAll make array #{[]}"
-          @eventQ.rollAll
+          @eventQ.rollAll if @eventQ
           @queueCount += 1
           @queueTime = Time.now
           @queueSize -= 1
@@ -53,7 +70,7 @@ module IPhone
           spent = end_time - start_time
          #puts "#{self.to_s}:onPostEvent: Finished rollAll in #{spent} from  #{@eventQ} #{@eventQ.eventQ.size} on  #{Dispatch::Queue.current} size #{@queueSize}"
          #puts "#{self.to_s}:onPostEvent: Finished rollAll make array #{[]}"
-        end
+        end if @dispatchQ
       end
     end
   end

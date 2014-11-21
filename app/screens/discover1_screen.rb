@@ -6,6 +6,8 @@ class Discover1Screen < ProMotion::MapScreen
   attr_accessor :menu
   attr_accessor :routes_view
 
+  attr_accessor :discoverInProgress
+
   # initialize doesn't get called because Promotion overrides new
   def self.newScreen(args)
    #puts "Initialize Discover1 Screen"
@@ -22,7 +24,14 @@ class Discover1Screen < ProMotion::MapScreen
   end
 
   def mainController=(mc)
+    if mainController
+      mainController.uiEvents.unregisterForEvent("Search:Discover:return", self)
+      mainController.uiEvents.unregisterForEvent("Search:Find:return", self)
+      mainController.release
+    end
     @mainController = WeakRef.new(mc)
+    mainController.uiEvents.registerForEvent("Search:Discover:return", self)
+    mainController.uiEvents.registerForEvent("Search:Find:return", self)
   end
 
   def on_init
@@ -31,9 +40,7 @@ class Discover1Screen < ProMotion::MapScreen
   end
 
   def after_init
-    mainController.uiEvents.registerForEvent("Search:Init:return", self)
-    mainController.uiEvents.registerForEvent("Search:Discover:return", self)
-    mainController.uiEvents.registerForEvent("Search:Find:return", self)
+    self.discoverInProgress = false
     initializeTouches
   end
 
@@ -49,6 +56,7 @@ class Discover1Screen < ProMotion::MapScreen
   end
 
   def onBuspassEvent(event)
+    PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: event #{event.eventName}"
     case event.eventName
       when "Search:Discover:return"
         onDiscover(event)
@@ -57,21 +65,48 @@ class Discover1Screen < ProMotion::MapScreen
     end
   end
 
+  attr_accessor :errorDialogDelegate
+  class ErrorDialogDelegate
+    attr_accessor :screen
+    attr_accessor :eventName
+    attr_accessor :eventData
+    def initialize(app)
+      self.screen = app
+      screen.errorDialogDelegate = self
+    end
+
+    def alertView(alertView, willDismissWithButtonIndex: buttonIndex)
+      PM.logger.info "ErrorDialogDelegate: alertView will dismiss with #{buttonIndex}"
+      screen.discoverInProgress = false
+      screen.errorDialogDelegate = nil
+    end
+
+    # This method never gets called.
+    def alertViewCancel(alertView)
+      PM.logger.error "ErrorDialogDelegate: alertViewCancel got called!"
+    end
+  end
+
+  def errorDialog(title, statusLine, delegate)
+    alertView = UIAlertView.alloc.initWithTitle(title,
+                                                message: statusLine.reasonPhrase,
+                                                delegate: delegate,
+                                                cancelButtonTitle: "OK",
+                                                otherButtonTitles: nil)
+    alertView.show
+    alertView
+  end
+
   def performDiscover(args)
-   #puts "performDiscover #{@discoverInProgress}"
-    if !@discoverInProgress
-      @discoverInProgress = true
-     #puts args.locationInView(map).inspect
+    PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
+    if !discoverInProgress
+      self.discoverInProgress = true
 
       cgPoint = args.locationInView(map)
 
       loc = map.convertPoint(cgPoint, toCoordinateFromView: map)
 
-     #puts "#{cgPoint.inspect} = #{loc.inspect}"
       mapRegion = map.region
-     #puts mapRegion.inspect
-     #puts mapRegion.span.inspect
-     #puts mapRegion.center.inspect
       buf = mapRegion.span.latitudeDelta / Integration::GeoPoint::LAT_PER_FOOT
 
       mainController.bgEvents.postEvent("Search:discover",
@@ -80,36 +115,50 @@ class Discover1Screen < ProMotion::MapScreen
   end
 
   def onDiscover(event)
+    PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
     evd = event.eventData
-    masters = evd.return
-    if masters
-      addMasters(masters)
+    if evd.error
+      boom = evd.error
+      if boom.is_a? Api::HTTPError
+        errorDialog("Network Error", boom.statusLine, ErrorDialogDelegate.new(self))
+      end
+    else
+      masters = evd.return
+      if masters
+        addMasters(masters)
+      end
+      self.discoverInProgress = false
     end
-    @discoverInProgress = false
   end
 
   def performFind(args)
+    PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
     cgPoint = args.locationInView(map)
     loc = map.convertPoint(cgPoint, toCoordinateFromView: map)
-    if ! @discoverInProgress
+    if ! discoverInProgress
       mainController.bgEvents.postEvent("Search:find",
-                                      Platform::DiscoverEventData.new(data: {loc: loc}))
+                                        Platform::DiscoverEventData.new(data: {loc: loc}))
     end
   end
 
   def onFind(event)
+    PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
     evd = event.eventData
-    master = evd.return
-    if master
-      masterApi = IPhone::Api.new(master)
-      mainController.bgEvents.postEvent("Main:Master:init",
-              Platform::MasterEventData.new(data: {master: master, masterApi: masterApi}))
-    elsif !@discoverInProgress
-      # Fire up a screen that will show the available masters.
-      discoverController = mainController.discoverController
-      if discoverController && !discoverController.masters.empty?
-        loc = evd.data[:loc]
-        open MastersTableScreen.newScreen(:mainController => mainController, :nav_bar => true)
+    if evd.error
+      PM.logger.error "#{self.class.name}#{__id__}:#{__method__}: Internal App Error #{evd.error}"
+    else
+      master = evd.return
+      if master
+        masterApi = IPhone::Api.new(master)
+        mainController.bgEvents.postEvent("Main:Master:init",
+                                          Platform::MasterEventData.new(data: {master: master, masterApi: masterApi}))
+      elsif !discoverInProgress
+        # Fire up a screen that will show the available masters.
+        discoverController = mainController.discoverController
+        if discoverController && !discoverController.masters.empty?
+          loc = evd.data[:loc]
+          open MastersTableScreen.newScreen(:mainController => mainController, :nav_bar => true)
+        end
       end
     end
   end

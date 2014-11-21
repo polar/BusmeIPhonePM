@@ -115,6 +115,17 @@ class MasterMainMenu < MenuScreen
     }
   end
 
+  def reload_menu
+    {
+        :title => "Reload",
+        :menu => [{
+                      :title => "Reload All",
+                      :action => :reload
+                  }
+        ]
+    }
+  end
+
   def cancel_menu
     {
         :title => "Cancel",
@@ -127,9 +138,12 @@ class MasterMainMenu < MenuScreen
         reporting_menu,
         busme_transit_menu,
         nearby_menu,
-        active_menu
+        active_menu,
+        reload_menu
     ]
   end
+
+
 
   def report(title)
    #puts "REPORT #{title}"
@@ -200,6 +214,16 @@ class MasterMainMenu < MenuScreen
           masterController.api.uiEvents.postEvent("VisibilityChanged")
           update_menu_data
         end
+    end
+  end
+
+  def reload(title)
+    case title
+      when "Reload All"
+        # post a reload followed by an immediate sync.
+        masterController.api.bgEvents.postEvent("Master:reload")
+        evd = Platform::JourneySyncEventData.new(isForced: true)
+        masterController.api.bgEvents.postEvent("JourneySync", evd)
     end
   end
 end

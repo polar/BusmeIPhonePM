@@ -3,6 +3,10 @@ class AppDelegate < PM::Delegate
   include Orientation
   include Platform::JourneySyncProgressEventDataConstants
 
+
+  DISCOVER_URL = "http://busme-apis.herokuapp.com/apis/d1/get"
+
+
   status_bar true, animation: :none
 
   attr_accessor :api
@@ -22,6 +26,7 @@ class AppDelegate < PM::Delegate
   attr_accessor :updateTimer
   attr_accessor :locationManager
   attr_accessor :bannerTimer
+  attr_accessor :timersStarted
 
   attr_accessor :sem
   attr_accessor :menu
@@ -105,6 +110,7 @@ class AppDelegate < PM::Delegate
 
   attr_accessor :restartOnCancel
   class RestartOnCancel
+    # TODO This has to be better.
     attr_accessor :app
     attr_accessor :eventName
     attr_accessor :eventData
@@ -117,7 +123,7 @@ class AppDelegate < PM::Delegate
 
     def alertView(alertView, willDismissWithButtonIndex: buttonIndex)
       puts "RestartOnCancel: alertView will dismiss with #{buttonIndex}"
-      puts "Going to post Main:Init in 5 seconds"
+      puts "Going to post #{@eventName} in 5 seconds"
       5.seconds.later do
         @app.mainController.bgEvents.postEvent(@eventName, @eventData)
         @app.restartOnCancel = nil
@@ -141,133 +147,298 @@ class AppDelegate < PM::Delegate
     alertView
   end
 
+  ##
+  # Workflow:
+  #   action/event -> reaction
+  #   event => IntendedReceiver
+  #
+  # AppDelegate
+  #   Main:Init:return ->
+  #     on defaultMaster -> Main:Master:init => MainController
+  #     on discover -> Main:Discover:init => MainController
+  #
+  #   Main:select -> Create DiscoverScreen ->
+  #      Main:Discover:init => MainController -> Create DiscoverController ->
+  #          Main:Discover:Init:return ->
+  #            Search:init => DiscoverController
+  #               Search:Init:Return -> enables DiscoverScreen
+  #
+  #   Main:Master:Init:return ->
+  #        show Getting MasterDialog, build MasterScreen, register for MasterController events
+  #        Master:init => MasterController
+  #
+  #   Master:Init:return ->
+  #     on success
+  #         End Init Dialog, switch to MasterScreen
+  #     on error
+  #         Error Dialog -> Main:init => MainController
+  #
+  # DiscoverScreen
+  #   on long_press
+  #      Search:discover => DiscoverController ->
+  #          Search:Discover:return -> populate DiscoverScreen
+  #   on tap
+  #      Search:find => DiscoverController ->
+  #        Search:Find:return -z.
+  #         Select a master from screen, -> Main:Master:init => MainController
+  #         Or, fire up MastersTableScreen, select master, -> Main:Master:init => MainController
+  #
+  # MainController
+  #  Main:init ->
+  #     Decides on Default Saved Master or to Discover ->
+  #        Main:Init:return => AppDelegate
+  #  Main:Master:init -> create MasterController ->
+  #     Main:Master:Init:return => AppDelegate -> ShowDialog, start timers, etc, waiting for master to load
+  #     Master:init => MasterController handles non-ui stuff
+  # MasterController
+  #   Master:init -> Contacts Server for Master
+  #     Master:Init:return => AppDelegate
+  #
+  #  Search:init ->
+  #     Search:Init:return
+
+
   def onBuspassEvent(event)
     PM.logger.info "AppDelegate: Got Event #{event.eventName}"
     case event.eventName
       when "Main:select"
-        evd = event.eventData
-        alertView = showLookingDialog
-        if busmeMapScreen
-          busmeMapScreen.close
-          saveMaster(false)
-        end
-        mainController.bgEvents.postEvent("Main:Discover:init",
-                                          Platform::DiscoverEventData.new(uiData: alertView,
-                                                                          data: {discoverApi: discoverApi}))
-        if discoverScreen
-          discoverScreen.clear
-        else
-          self.discoverApi =  IPhone::DiscoverApi.new("http://busme-apis.herokuapp.com/apis/d1/get")
-          self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
-          alertView = showLookingDialog
-          mainController.bgEvents.postEvent("Main:Discover:init",
-                                            Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
-        end
-        open discoverScreen
+        onMainSelect(event)
       when "Main:Init:return"
-        evd = event.eventData
-        if evd.return && evd.return == "defaultMaster"
-          master = evd.data[:master]
-          if master
-            masterApi = IPhone::Api.new(master)
-            eventData = Platform::MasterEventData.new(
-              :data => {
-                :master => master,
-                :masterApi => masterApi
-              },
-            )
-            mainController.bgEvents.postEvent("Main:Master:init", eventData)
-          end
-        else # discover
-          self.discoverApi =  IPhone::DiscoverApi.new("http://busme-apis.herokuapp.com/apis/d1/get")
-          self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
-          alertView = showLookingDialog
-          mainController.bgEvents.postEvent("Main:Discover:init",
-                                            Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
-          open discoverScreen
-        end
+        onMainInitReturn(event)
       when "Main:Discover:Init:return"
-        evd = event.eventData
-        alertView = evd.uiData
-        if alertView
-          alertView.dismissWithClickedButtonIndex(0, animated: true)
-        end
-        mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new)
+        onMainDiscoverInitReturn(event)
       when "Search:Init:return"
-        evd = event.eventData
-        status = evd.return
-        if !status
-          status = Integration::Http::StatusLine.new(500, "Internal App Error, No Api")
-        end
-        if status.is_a?(Integration::Http::StatusLine)
-          # It's an error, restart.
-          errorDialog("Network Error", status, RestartOnCancel.new(self, "Main:init", Platform::MainEventData.new))
-        else
-          loc = configurator.getLastLocation
-          if loc
-            mainController.bgEvents.postEvent("Search:discover", Platform::DiscoverEventData.new(
-                :data => { :lon => loc.longitude, :lat => loc.latitude, :buf => 10000 }
-            ))
-          end
-        end
-      # The Discover Screen will fire off a "Main:Master:init" event when a master is selected.
-      # We catch the return event here on the UI Thread and switch to the master's screen.
+        onSearchInitReturn(event)
       when "Main:Master:Init:return"
-        evd = event.eventData
-        masterController = evd.return
-        PM.logger.info "AppDelegate: masterController: #{masterController.__id__}"
-        alertView = showMasterDialog(masterController.master)
-        eventsController.register(masterController.api)
-        PM.logger.info "AppDelegate: closing Discover Screen"
-        discoverScreen.close if discoverScreen
-        PM.logger.info "AppDelegate: closed Discover Screen"
-        self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
-        PM.logger.info "AppDelegate: Opening Master Map Screen"
-        open busmeMapScreen
-        PM.logger.info "AppDelegate: Opened Master Map Screen"
-        eventData = Platform::MasterEventData.new(:uiData => alertView)
-        masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
-        # This event allows us to start the UpdateTimer after the first sync.
-        masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
-        masterController.api.bgEvents.postEvent("Master:init", eventData)
-        # We set up the timers for JourneySync and Update, but we don't start them
-        # until after each one has completed its first one.
-        self.journeySyncTimer = JourneySyncTimer.new(masterController: masterController)
-        self.updateTimer = UpdateTimer.new(masterController: masterController)
-        # We'll start the banners right away.
-        self.bannerTimer = BannerTimer.new(masterController: masterController)
-        bannerTimer.start
-
+        onMainMasterInitReturn(event)
       when "Master:Init:return"
-        evd = event.eventData
-        alertView = evd.uiData
-        if alertView
-          alertView.dismissWithClickedButtonIndex(0, animated: true)
-        end
-        status = evd.return
-        if status.is_a?(Integration::Http::StatusLine)
-          errorDialog("Network Error", status, RestartOnCancel.new(self, "Main:init", Platform::MainEventData.new))
-        else
-          lastLocation = configurator.getLastLocation
-          if lastLocation
-            mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new())
-          end
-          PM.logger.info "SETTING TIMEZONE TO #{mainController.masterController.api.buspass.timezone}"
-          timeZone = NSTimeZone.timeZoneWithName mainController.masterController.api.buspass.timezone
-          NSTimeZone.setDefaultTimeZone(timeZone) if timeZone
-        end
-
+        onMasterInitReturn(event)
       when "JourneySyncProgress"
-        evd = event.eventData
-        case evd.action
-          when P_DONE
-            if updateTimer.pleaseStop == true && journeySyncTimer.pleaseStop == false
-              updateTimer.start
-              journeySyncTimer.start
-            end
-        end
+        onJourneySyncProgress(event)
     end
     #PM.logger.info "AppDelegate: Finished with event #{event.eventName}"
+  end
+
+  ##
+  # This event signifies that the first JourneySync has completed and we should start
+  # The Sync and Update timers.
+  #
+
+  def onJourneySyncProgress(event)
+    evd = event.eventData
+    case evd.action
+      when P_DONE
+        if ! timersStarted
+          PM.logger.info "Starting Sync and UpdateTimers"
+          journeySyncTimer.start
+          updateTimer.start
+          self.timersStarted = true
+        end
+    end
+  end
+
+  ##
+  # This event signifies that the MasterController got or attempted to get API from the Server for the Master
+  # If there is an HTTP Error, we'll just go back to the Main:init and start over.
+  # If success, we do certain things pertaining to the master, like set up our Timezone, etc.
+  def onMasterInitReturn(event)
+    evd       = event.eventData
+    alertView = evd.uiData
+    if alertView && alertView.is_a?(UIAlertView)
+      alertView.dismissWithClickedButtonIndex(0, animated: true)
+    end
+    if evd.error
+      if evd.error.is_a? Api::HTTPError
+        errorDialog("Network Error", evd.error.statusLine,
+                    RestartOnCancel.new(self, "Main:init", Platform::MainEventData.new))
+      else
+        PM.logger.error "#{__method__}: Internal App Error: #{evd.error}"
+      end
+    else
+      lastLocation = configurator.getLastLocation
+      if lastLocation
+        PM.logger.warn "#{__method__}: Have Last Location: #{lastLocation.inspect}"
+      end
+      PM.logger.info "#{__method__}: SETTING TIMEZONE TO #{mainController.masterController.api.buspass.timezone}"
+      timeZone = NSTimeZone.timeZoneWithName mainController.masterController.api.buspass.timezone
+      NSTimeZone.setDefaultTimeZone(timeZone) if timeZone
+    end
+  end
+
+  ##
+  # This method gets called on a Main:Master:Init:return event.
+  #
+  # The Discover Screen will fire off a "Main:Master:init" event when a master is selected, which
+  # in turn creates a MasterController.
+  # We catch the return event here on the UI Thread and switch to the master's screen, start
+  # the timers, etc., i.e. operate the master, then fire off the "Master:init" event.
+  #
+  # There should not be an error, because the discover screen will either select a Master or
+  # it will just stay there.
+  #
+  def onMainMasterInitReturn(event)
+    evd = event.eventData
+    if evd.error
+      PM.logger.error "#{__method__}: Internal App Error: #{evd.error}"
+    else
+      killTimers
+      masterController, oldMasterController = evd.return
+
+      PM.logger.info "AppDelegate: masterController: new #{masterController.__id__} old #{oldMasterController}"
+
+      if oldMasterController
+        eventsController.unregister(oldMasterController.api)
+      end
+      eventsController.register(masterController.api)
+
+      # We register for this event to take down the dialog. The API is ready or there is a Network error.
+      masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
+      # This event allows us to start the JourneySyncTimer and Update timers after the
+      # MasterController's first initial sync.
+      masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
+
+      alertView = showMasterDialog(masterController.master)
+      discoverScreen.close if discoverScreen
+      self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
+      open busmeMapScreen
+
+      # Fire off the event to initialize the master, the return will allow us to take down the dialog or handle
+      # an error.
+      eventData = Platform::MasterEventData.new(:uiData => alertView)
+      masterController.api.bgEvents.postEvent("Master:init", eventData)
+
+      # We set up the timers for JourneySync and Update
+      # We don't start the JourneySync or Update Timer until it completes the first sync.
+      self.timersStarted = false
+      self.journeySyncTimer = JourneySyncTimer.new(masterController: masterController)
+      self.updateTimer      = UpdateTimer.new(masterController: masterController)
+
+      # We'll start the banners,message,marker timers right away.
+      self.bannerTimer      = BannerTimer.new(masterController: masterController)
+      bannerTimer.start
+    end
+  end
+
+  def onSearchInitReturn(event)
+    evd = event.eventData
+    if evd.error
+      if evd.error.is_a? Api::HTTPError
+        errorDialog("Network Error", evd.error.statusLine,
+                    RestartOnCancel.new(self, "Main:init", Platform::MainEventData.new))
+      else
+        PM.logger.error "#{__method__}: Internal App Error: #{evd.error}"
+      end
+    else
+      loc = configurator.getLastLocation
+      if loc
+        mainController.bgEvents.postEvent("Search:discover",
+                                          Platform::DiscoverEventData.new(
+                                              :data => {:lon => loc.longitude, :lat => loc.latitude, :buf => 10000}
+                                          ))
+      end
+    end
+  end
+
+  def onMainDiscoverInitReturn(event)
+    evd       = event.eventData
+    alertView = evd.uiData
+    if alertView && alertView.is_a?(UIAlertView)
+      alertView.dismissWithClickedButtonIndex(0, animated: true)
+    end
+    if evd.error
+      PM.logger.error "#{__method__}: Internal App Error: #{evd.error}"
+    else
+      mainController.bgEvents.postEvent("Search:init", Platform::DiscoverEventData.new)
+    end
+  end
+
+  ##
+  # This event signifies that the MainController was created and it has decided
+  # whether we are going to open a Master or a Discover.
+  #
+  def onMainInitReturn(event)
+    evd = event.eventData
+    if evd.error
+      PM.logger.error "#{__method__}: Internal App Error: #{evd.error}"
+    else
+      if evd.return && evd.return == "defaultMaster"
+        master = evd.data[:master]
+        if master
+          masterApi = IPhone::Api.new(master)
+          eventData = Platform::MasterEventData.new(
+              :data => {
+                  :master    => master,
+                  :masterApi => masterApi
+              },
+          )
+          mainController.bgEvents.postEvent("Main:Master:init", eventData)
+        else
+          PM.logger.error "#{__method__}: Return 'defaultMaster' does not contain a master."
+          createDiscoverScreen(false)
+        end
+      else # discover
+        createDiscoverScreen(true)
+      end
+    end
+  end
+
+  def createDiscoverScreen(showDialog)
+    if discoverScreen
+      discoverScreen.clear
+      discoverScreen.mainController = mainController
+    else
+      self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
+    end
+    self.discoverApi    = IPhone::DiscoverApi.new(DISCOVER_URL)
+    alertView           = showLookingDialog if showDialog
+    mainController.bgEvents.postEvent(
+        "Main:Discover:init",
+        Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
+    open discoverScreen
+  end
+
+  ##
+  # This event comes from the MainMenuController
+  # If we have a MasterScreen open, then close it.
+  # If we have a Discover screen, clear it, or create it, and open it.
+  #  Main:Discover:init => MainController
+  #
+  def onMainSelect(event)
+    alertView = showLookingDialog
+    if busmeMapScreen
+      busmeMapScreen.close
+      saveMaster(false)
+    end
+    mainController.bgEvents.postEvent("Main:Discover:init",
+                                      Platform::DiscoverEventData.new(uiData: alertView,
+                                                                      data:   {discoverApi: discoverApi}))
+    if discoverScreen
+      discoverScreen.clear
+    else
+      createDiscoverScreen(true)
+    end
+    open discoverScreen
+  end
+
+  def stopTimers
+    journeySyncTimer.stop if journeySyncTimer
+    bannerTimer.stop if bannerTimer
+    updateTimer.stop if updateTimer
+  end
+
+  def killTimers
+    journeySyncTimer.kill if journeySyncTimer
+    bannerTimer.kill if bannerTimer
+    updateTimer.kill if updateTimer
+    self.journeySyncTimer = nil
+    self.bannerTimer = nil
+    self.updateTimer = nil
+  end
+
+  def resumeTimers
+    journeySyncTimer.restart if journeySyncTimer
+    bannerTimer.restart if bannerTimer
+    updateTimer.restart if updateTimer
   end
 
   def applicationWillTerminate(application)

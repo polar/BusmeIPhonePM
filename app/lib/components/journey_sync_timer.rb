@@ -23,9 +23,14 @@ class JourneySyncTimer
     doSync(false)
   end
 
+  def kill
+    self.pleaseStop = true
+    self.masterController = nil
+  end
+
   def doSync(forced)
     evd = Platform::JourneySyncEventData.new(isForced: forced)
-    masterController.api.bgEvents.postEvent("JourneySync", evd)
+    masterController.api.bgEvents.postEvent("JourneySync", evd) if masterController
   end
 
   def onBuspassEvent(event)
@@ -38,13 +43,12 @@ class JourneySyncTimer
   def onProgress(eventData)
     case eventData.action
       when P_DONE
-        if !pleaseStop
+        if !pleaseStop && masterController
           updateRate = (masterController.api.syncRate || 1000)/1000.0 || 1
           updateRate.seconds.later do
             doSync(false) if !@pleaseStop
           end
         end
-      else
     end
   end
 end
