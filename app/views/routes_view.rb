@@ -117,8 +117,7 @@ class RoutesView < PM::TableScreen
   end
 
   def tableView(table_view, heightForRowAtIndexPath:index_path)
-    puts "HeightForRowAtIndexPath #{index_path}"
-    37
+    36.5
   end
 
   def will_appear

@@ -128,40 +128,40 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def onSyncProgress(eventData)
-    eventData.isForced = false
+    #eventData.isForced = false
     case eventData.action
       when P_BEGIN
         @syncInProgress = true
-       # alertView.show if eventData.isForced
-        #alertView.message = "Contacting Server"
+        alertView.show if eventData.isForced
+        alertView.message = "Contacting Server"
         activityIndicator.startAnimating
       when P_SYNC_START
        #puts "alertView.message : Syncing"
-        #alertView.message = "Syncing"
+        alertView.message = "Syncing"
       when P_SYNC_END
        # alertView.message = ""
       when P_ROUTE_START
        #puts "alertView.message : Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
-        #alertView.setMessage "Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
+        alertView.setMessage "Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
        #puts "alertView.message : set"
       when P_ROUTE_END
        #puts "alertView.message : Eat shit mutherfucking aapple"
-       # alertView.setMessage "Eat shit mutherfucking aapple"
+       #alertView.setMessage "Eat shit mutherfucking aapple"
        #puts "alertView.message : set  ^^^^^^^^^^^^^^^^^^^"
        #puts "alertView.message : Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
-       # alertView.setMessage "Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
+       alertView.setMessage "Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
        #puts "alertView.message : set"
       when P_IOERROR
        #puts "alertView.message : IOERROR"
-        #alertView.message = "IOERROR!!!"
-        #alertView.dismissWithClickedButtonIndex(0, animated: true)
-        UIAlertView.alert("Network Error", message: eventData.ioError)
+       alertView.message = "IOERROR!!!"
+       alertView.dismissWithClickedButtonIndex(0, animated: true)
+       UIAlertView.alert("Network Error", message: eventData.ioError)
       when P_DONE
        #puts "alertView.message : DONE"
-       # alertView.message = "DONE"
-       # alertView.dismissWithClickedButtonIndex(0, animated: true)
-        @syncInProgress = false
-        activityIndicator.stopAnimating if !@syncInProgress && !@updateInProgress
+       alertView.message = "DONE"
+       alertView.dismissWithClickedButtonIndex(0, animated: true)
+       @syncInProgress = false
+       activityIndicator.stopAnimating if !@syncInProgress && !@updateInProgress
       else
     end
    #puts "Done JourneySyncProgress #{eventData.action}"
