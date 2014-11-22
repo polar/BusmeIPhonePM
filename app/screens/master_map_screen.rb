@@ -191,17 +191,25 @@ class MasterMapScreen < ProMotion::MapScreen
   def onBuspassEvent(event)
    #puts "MasterMapScreen: onBuspassEvent(#{event.eventName})"
    #puts "MasterMapScreen: onBupassEvent make Array #{[]}"
+    evd = event.eventData
     case event.eventName
       when "Master:Init:return"
-        doSync(true)
+        onMasterInitReturn(evd)
       when "JourneySyncProgress"
-        evd = event.eventData
        #puts "JourneySyncProgress: #{evd.action}"
         onSyncProgress(evd)
       when "UpdateProgress"
-        evd = event.eventData
        #puts "UpdateProgress: #{evd.action}"
         onUpdateProgress(evd)
+    end
+  end
+
+  def onMasterInitReturn(evd)
+    if evd.error
+      PM.logger.error "#{self.class.name}:#{__method__}: error #{evd.error}"
+    else
+      force = evd.data[:disposition] != :default
+      doSync(force)
     end
   end
 

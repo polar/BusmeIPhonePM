@@ -297,14 +297,14 @@ class AppDelegate < PM::Delegate
       # MasterController's first initial sync.
       masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
 
-      alertView = showMasterDialog(masterController.master)
+      alertView = showMasterDialog(masterController.master) if evd.data[:disposition] != :default
       discoverScreen.close if discoverScreen
       self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
       open busmeMapScreen
 
       # Fire off the event to initialize the master, the return will allow us to take down the dialog or handle
       # an error.
-      eventData = Platform::MasterEventData.new(:uiData => alertView)
+      eventData = Platform::MasterEventData.new(:uiData => alertView, :data => {:disposition => :default})
       masterController.api.bgEvents.postEvent("Master:init", eventData)
 
       # We set up the timers for JourneySync and Update
@@ -368,7 +368,8 @@ class AppDelegate < PM::Delegate
           eventData = Platform::MasterEventData.new(
               :data => {
                   :master    => master,
-                  :masterApi => masterApi
+                  :masterApi => masterApi,
+                  :disposition => :default
               },
           )
           mainController.bgEvents.postEvent("Main:Master:init", eventData)
@@ -421,12 +422,14 @@ class AppDelegate < PM::Delegate
   end
 
   def stopTimers
+    PM.logger.info "AppDelegate: Stopping Timers."
     journeySyncTimer.stop if journeySyncTimer
     bannerTimer.stop if bannerTimer
     updateTimer.stop if updateTimer
   end
 
   def killTimers
+    PM.logger.info "AppDelegate: Killing Timers."
     journeySyncTimer.kill if journeySyncTimer
     bannerTimer.kill if bannerTimer
     updateTimer.kill if updateTimer
@@ -436,6 +439,7 @@ class AppDelegate < PM::Delegate
   end
 
   def resumeTimers
+    PM.logger.info "AppDelegate: Resuming Timers."
     journeySyncTimer.restart if journeySyncTimer
     bannerTimer.restart if bannerTimer
     updateTimer.restart if updateTimer
@@ -523,12 +527,15 @@ class AppDelegate < PM::Delegate
   end
   def applicationWillResignActive(application)
     puts "#{self.class.name}:#{self.__method__}"
+    stopTimers
+    saveMaster(false)
   end
   def applicationDidEnterBackground(application)
     puts "#{self.class.name}:#{self.__method__}"
   end
   def applicationWillEnterForeground(application)
     puts "#{self.class.name}:#{self.__method__}"
+    resumeTimers
   end
   def applicationWillTerminate(application)
     puts "#{self.class.name}:#{self.__method__}"
