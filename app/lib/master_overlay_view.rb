@@ -32,6 +32,7 @@ class MasterOverlayView < MKOverlayView
     masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
     masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
     masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
+    masterController.api.uiEvents.registerForEvent("LocationUpdate", self)
   end
 
   def onBuspassEvent(event)
@@ -47,6 +48,8 @@ class MasterOverlayView < MKOverlayView
         updateJourneyLocation(event.eventData)
       when "VisibilityChanged"
         setNeedsDisplayInMapRect(overlay.boundingMapRect)
+      when "LocationUpdate"
+        updateDeviceLocation(event.eventData)
     end
    # puts "MasterOverlayView. Finished event #{event.eventName}"
   end
@@ -114,6 +117,7 @@ class MasterOverlayView < MKOverlayView
     # We draw locators over the paths.
     drawLocators(mapRect, p, context)
    # puts "<<<<< Exit DrawMapRect #{thisCount} at #{p}"
+    drawDeviceLocation(mapRect, p, context)
   end
 
   def drawPaths(mapRect, projection, context)
@@ -226,8 +230,36 @@ class MasterOverlayView < MKOverlayView
     x = point.x - icon.hotspot.x/projection.zoomscale
     y = point.y - icon.hotspot.y/projection.zoomscale
     imageRect = CGRectMake(x, y, icon.image.size.width/projection.zoomscale, icon.image.size.height/projection.zoomscale)
-   # puts "drawBusArrow #{projection.zoomscale} at #{point.inspect} #{direction} into #{printRect imageRect} #{printRect mapRectForRect(imageRect)}"
+   # puts "drawBusArrow #{projection.zoomscale} at #{point.inspect} #{direction} into #{printRect imageRect} #{printmRect mapRectForRect(iageRect)}"
     CGContextDrawImage(cgContext, imageRect, icon.image.cgimage)
     imageRect
+  end
+
+  def drawDeviceLocation(mapRect, projection, context)
+    loc = @location
+    if loc
+      coord = CLLocationCoordinate2D.new(loc.latitude, loc.longitude)
+      mapPoint = MKMapPointForCoordinate(coord)
+      cgPoint = pointForMapPoint(mapPoint)
+      x = cgPoint.x - 1/projection.zoomscale
+      y = cgPoint.y - 1/projection.zoomscale
+      @personIcon ||= UIImage.imageNamed("person.png")
+      image = @personIcon
+      imageRect = CGRectMake(x, y, image.size.width/projection.zoomscale, image.size.height/projection.zoomscale)
+      @locationMapRect = mapRectForRect(imageRect)
+      CGContextDrawImage(context, imageRect, image.cgimage)
+    end
+  end
+
+  def updateDeviceLocation(eventData)
+    PM.logger.info "#{self.class.name}:#{__method__} #{eventData.location} #{eventData.time}"
+    loc = @location = eventData.location
+    coord = CLLocationCoordinate2D.new(loc.latitude, loc.longitude)
+    mapPoint = MKMapPointForCoordinate(coord)
+    @personIcon ||= UIImage.imageNamed("person.png")
+    image = @personIcon
+    mapRect = MKMapRectMake(mapPoint.x, mapPoint.y, image.size.width, image.size.height)
+    setNeedsDisplayInMapRect(mapRect)
+    setNeedsDisplayInMapRect(@locationMapRect) if @locationMapRect
   end
 end

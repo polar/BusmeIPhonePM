@@ -43,12 +43,12 @@ class AppDelegate < PM::Delegate
          Library/Caches/com.busme/syracuse-university-Messages.xml)
       names.each do |name|
         PM.logger.warn "Deleting #{name}"
-        File.delete(name)
+        File.delete(name) if File.exists?(name)
         PM.logger.warn "File.exists?(#{name})=#{File.exists?(name)}"
       end
     rescue Exception => boom
       puts "#{boom}"
-    end if false
+    end if true
 
 
     self.configurator = Configurator.new
@@ -553,9 +553,11 @@ class AppDelegate < PM::Delegate
         if BW::App.delegate.mainController
           PM.logger.info "Posting to Main"
           BW::App.delegate.mainController.bgEvents.postEvent("LocationUpdate", evd)
+          BW::App.delegate.mainController.uiEvents.postEvent("LocationUpdate", evd)
           if @mainController.masterController
             PM.logger.info "Posting to Master"
             BW::App.delegate.mainController.masterController.api.bgEvents.postEvent("LocationUpdate", evd)
+            BW::App.delegate.mainController.masterController.api.uiEvents.postEvent("LocationUpdate", evd)
           end
           if BW::App.delegate.configurator
             BW::App.delegate.configurator.setLastLocation(loc)
