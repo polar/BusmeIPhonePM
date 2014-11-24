@@ -97,6 +97,20 @@ class Discover1Screen < ProMotion::MapScreen
     alertView
   end
 
+  def performDiscoverFromLoc(loc, buf = nil)
+    if !discoverInProgress
+      self.discoverInProgress = true
+
+      if buf.nil?
+        mapRegion = map.region
+        buf = mapRegion.span.latitudeDelta / Integration::GeoPoint::LAT_PER_FOOT
+      end
+
+      mainController.bgEvents.postEvent("Search:discover",
+                                        Platform::DiscoverEventData.new(data: {lon: loc.longitude, lat: loc.latitude, buf: buf}))
+    end
+  end
+
   def performDiscover(args)
     PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
     if !discoverInProgress

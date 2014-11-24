@@ -2,6 +2,7 @@ motion_require "json/pure"
 class AppDelegate < PM::Delegate
   include Orientation
   include Platform::JourneySyncProgressEventDataConstants
+  include Api::UpdateProgressConstants
 
 
   DISCOVER_URL = "http://busme-apis.herokuapp.com/apis/d1/get"
@@ -35,9 +36,16 @@ class AppDelegate < PM::Delegate
 
     self.eventsController = IPhone::EventsController.new(delegate: self)
     begin
-      File.delete("Library/Caches/com.busme/syracuse-university-Journeys.xml")
-      File.delete("Library/Caches/com.busme/syracuse-university-Markers.xml")
-      File.delete("Library/Caches/com.busme/syracuse-university-Messages.xml")
+      PM.logger.warn "Deleting Files"
+      names = %w(
+         Library/Caches/com.busme/syracuse-university-Journeys.xml
+         Library/Caches/com.busme/syracuse-university-Markers.xml
+         Library/Caches/com.busme/syracuse-university-Messages.xml)
+      names.each do |name|
+        PM.logger.warn "Deleting #{name}"
+        File.delete(name)
+        PM.logger.warn "File.exists?(#{name})=#{File.exists?(name)}"
+      end
     rescue Exception => boom
       puts "#{boom}"
     end if false
@@ -93,6 +101,20 @@ class AppDelegate < PM::Delegate
     alertView.setValue(indicator, forKey: "accessoryView")
     alertView.show
     alertView
+  end
+
+  attr_accessor :networkErrorDialog
+  def showTemporaryNetworkError
+    self.networkErrorDialog ||= UIAlertView.alloc.initWithTitle("Network Error",
+                                               message: "Cannot contact server temporarily",
+                                               delegate:nil,
+                                               cancelButtonTitle: nil,
+                                               otherButtonTitles: nil)
+    networkErrorDialog.show
+    2.seconds.later do
+      networkErrorDialog.dismissWithClickedButtonIndex(0, animated: true)
+    end
+    networkErrorDialog
   end
 
   def showMasterDialog(master)
@@ -215,8 +237,37 @@ class AppDelegate < PM::Delegate
         onMasterInitReturn(event)
       when "JourneySyncProgress"
         onJourneySyncProgress(event)
+      when "UpdateProgress"
+        onUpdateProgress(event)
     end
     #PM.logger.info "AppDelegate: Finished with event #{event.eventName}"
+  end
+
+  # TODO: Move onUpdateProgress to an UpdateErrorController in rubylib and post a UIEvent to trigger a notification.
+  UPDATE_ERROR_LIMIT = 5
+
+  ##
+  # We pay attention to starts, errors, and finishes. If we get a number of errors
+  # in a period of time, then throw up a dialog.
+  #
+  def onUpdateProgress(event)
+    @updateCount ||= 0
+    evd = event.eventData
+    case evd.action
+      when U_START
+        @updateCount += 1
+      when U_REQ_IOERROR
+        @updateError = @updateCount
+      when U_FINISH
+        if @updateError != @updateCount
+          @updateCount = 0
+          @updateError = nil
+        elsif @updateCount > UPDATE_ERROR_LIMIT
+          showTemporaryNetworkError
+          @updateCount = 0
+          @updateError = nil
+        end
+    end
   end
 
   ##
@@ -296,6 +347,7 @@ class AppDelegate < PM::Delegate
       # This event allows us to start the JourneySyncTimer and Update timers after the
       # MasterController's first initial sync.
       masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
+      masterController.api.uiEvents.registerForEvent("UpdateProgress", self)
 
       alertView = showMasterDialog(masterController.master) if evd.data[:disposition] != :default
       discoverScreen.close if discoverScreen
@@ -331,10 +383,9 @@ class AppDelegate < PM::Delegate
     else
       loc = configurator.getLastLocation
       if loc
-        mainController.bgEvents.postEvent("Search:discover",
-                                          Platform::DiscoverEventData.new(
-                                              :data => {:lon => loc.longitude, :lat => loc.latitude, :buf => 10000}
-                                          ))
+        if discoverScreen
+          discoverScreen.performDiscoverFromLoc(loc)
+        end
       end
     end
   end
@@ -392,9 +443,12 @@ class AppDelegate < PM::Delegate
     end
     self.discoverApi    = IPhone::DiscoverApi.new(DISCOVER_URL)
     alertView           = showLookingDialog if showDialog
+
     mainController.bgEvents.postEvent(
         "Main:Discover:init",
-        Platform::DiscoverEventData.new(uiData: alertView, data: {discoverApi: discoverApi}))
+        Platform::DiscoverEventData.new(
+            uiData: alertView,
+            data: {discoverApi: discoverApi}))
     open discoverScreen
   end
 
@@ -410,9 +464,11 @@ class AppDelegate < PM::Delegate
       busmeMapScreen.close
       saveMaster(false)
     end
+    killTimers
     mainController.bgEvents.postEvent("Main:Discover:init",
-                                      Platform::DiscoverEventData.new(uiData: alertView,
-                                                                      data:   {discoverApi: discoverApi}))
+                                      Platform::DiscoverEventData.new(
+                                          uiData: alertView,
+                                          data:   {discoverApi: discoverApi}))
     if discoverScreen
       discoverScreen.clear
     else
@@ -500,6 +556,9 @@ class AppDelegate < PM::Delegate
           if @mainController.masterController
             PM.logger.info "Posting to Master"
             BW::App.delegate.mainController.masterController.api.bgEvents.postEvent("LocationUpdate", evd)
+          end
+          if BW::App.delegate.configurator
+            BW::App.delegate.configurator.setLastLocation(loc)
           end
           PM.logger.info "Posting Done"
         end

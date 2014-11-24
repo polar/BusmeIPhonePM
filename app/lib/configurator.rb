@@ -25,12 +25,15 @@ class Configurator < Platform::BusmeConfigurator
   end
 
   def setLastLocation(loc)
+    if !loc.is_a?(Integration::GeoPoint)
+      loc = Integration::GeoPoint.new(loc.latitude * 1E6, loc.longitude * 1E6)
+    end
     NSUserDefaults[:lastLocation] = Api::Archiver.encode(loc)
   end
 
   def getLastLocation
     str = NSUserDefaults[:lastLocation]
-    if str && !str.empty
+    if str && !str.empty?
       loc = Api::Archiver.decode(str)
     end
   end

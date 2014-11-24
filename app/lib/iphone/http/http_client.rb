@@ -98,7 +98,18 @@ module IPhone
         #return Integration::Http::HttpEntity.new(MockWrap.new(mock)) if /discover\?lon/ =~ url
         res = nil
         PM.logger.info "HTTP Post #{url} on #{Dispatch::Queue.current}"
-        resp = AFMotion::HTTP.post(url, params) do |result|
+        PM.logger.info "Params #{params.inspect}"
+        # For AFNetworking we have to change the parameters to hash => arrays.
+        afParams = {}
+        params.each do |k,v|
+          match = /(\w*)\[\]\Z/.match k
+          if match
+            k = match[1]
+          end
+          afParams[k] ||= []
+          afParams[k] << v
+        end
+        resp = AFMotion::HTTP.post(url, afParams) do |result|
           # This thread always seems to be the apple-main-thread!
           # So we need to post back to the background immediately
           @queue.async do

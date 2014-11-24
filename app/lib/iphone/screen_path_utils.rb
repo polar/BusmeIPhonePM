@@ -15,11 +15,15 @@ Utils::ScreenPathUtils.class_eval do
     path = Integration::Path.new
     coords = Integration::Point.new
     for point in projectedPath
-      projection.translatePoint(point, coords)
-      # For the iPhone, just placing the point on the path is actually faster than deciding
-      # whether it is in the MapRect of the projection to
-      # draw the line. See the Android code for example.
-      path.lineTo(coords.x,coords.y)
+      if point
+        projection.translatePoint(point, coords)
+        # For the iPhone, just placing the point on the path is actually faster than deciding
+        # whether it is in the MapRect of the projection to
+        # draw the line. See the Android code for example.
+        path.lineTo(coords.x,coords.y)
+      else
+        PM.logger.error "A point in projectedPath is nil"
+      end
     end
     path
   end

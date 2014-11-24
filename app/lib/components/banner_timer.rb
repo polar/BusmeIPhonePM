@@ -45,14 +45,22 @@ class BannerTimer
   end
 
   def onBuspassEvent(event)
+    # Timers maybe getting killed, so various parts may not be around. Keep testing for them.
     return unless masterController
+
     case event.eventName
       when "Banner:roll"
-        masterController.bannerPresentationController.roll(event.eventData)
+        if masterController.bannerPresentationController
+          masterController.bannerPresentationController.roll(event.eventData)
+        end
       when "Marker:roll"
-        masterController.markerPresentationController.roll(event.eventData)
+        if masterController.markerPresentationController
+          masterController.markerPresentationController.roll(event.eventData)
+        end
       when "MasterMessage:roll"
-        masterController.masterMessageController.roll(Utils::Time.current)
+        if masterController.masterMessageController
+          masterController.masterMessageController.roll(Utils::Time.current)
+        end
     end
   end
 end

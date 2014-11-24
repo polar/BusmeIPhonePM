@@ -179,6 +179,11 @@ class MasterOverlayView < MKOverlayView
       #puts "Stroking Path"
       CGContextStrokePath(context)
     end
+  rescue Exception => boom
+    PM.logger.error "Error drawing pattern"
+    projectedPath.each_with_index do |p, i|
+      PM.logger.error "#{i}: #{p.inspect if p}"
+    end if projectedPath
   end
 
   def drawLocators(mapRect, projection, context)

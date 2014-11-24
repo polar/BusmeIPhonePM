@@ -68,13 +68,18 @@ class MastersTableScreen < PM::TableScreen
   end
 
   def select_master(args)
-    master = args[:master]
-    if master
-      masterApi = IPhone::Api.new(master)
-      eventData = Platform::MasterEventData.new(
-          :data => { :master => master, :masterApi => masterApi}
-      )
-      mainController.bgEvents.postEvent("Main:Master:init", eventData)
+    if !@selecting
+      @selecting = true
+      master = args[:master]
+      if master
+        masterApi = IPhone::Api.new(master)
+        eventData = Platform::MasterEventData.new(
+            :data => { :master => master, :masterApi => masterApi}
+        )
+        mainController.bgEvents.postEvent("Main:Master:init", eventData)
+      else
+        @selecting = false
+      end
     end
   end
 

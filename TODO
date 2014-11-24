@@ -1,45 +1,19 @@
 Features That Need to be Implemented
 
-Dialogs for Network Errors
-  Discover Screen.init
-     Done 20-10-2014
-  Discover.Screen.discover
-     Done 21-10-2014
-  Master.Init.Screen
-     Done 20-10-2014
-  Update will be silent
-     Perhaps after several weill put up a notification.
-  JourneySyncProgress
-     21-10-2014
-
-
 User Location on Map
 
 NearBy needs implementation
 
 HighLighting Journey needs to bring map locator icon to the top of all others.
 
-on AppDelegate:applicationWillResignActive:
-have application:
-   Save state
-   Stop update, and sync_timer
+Reporting/Posting needs to be implemented
+
 
 on AppDelegate:applicationDidEnterBackground:
    If we have reporting going on, keep it going.
 
 on AppDelegate:applicationWillTerminate:
-   If we have location data, store it.
-
-on AppDelegate:applicationWillEnterForground:
-   Do Sync, and restart update and sync timers
-
-on AppDelegate:applicationDidBecomeActive
-   Nothing?
-
-Reporting/Posting needs to be implemented
-
-Discover remembers last location and fires up immediately from there, if no location
-is available.
+   If we have location data, store it. Stop reporting.
 
 Routes View needs indicator when there are no routes.
 
@@ -57,3 +31,33 @@ Banner Message Processing (click thrus)
 
 Icon for RouteView Back Button
 
+
+
+
+on AppDelegate:applicationDidBecomeActive
+    Restore Timers
+      Done 22-10-2014
+
+on AppDelegate:applicationWillEnterForeground:
+   Do Sync, and restart update and sync timers
+      Done 22-10-2104
+on AppDelegate:applicationWillResignActive:
+have application:
+   Save state
+   Stop update, and sync_timer
+     Done 22-10-2014
+
+Discover remembers last location and fires up immediately from there, if no location
+is available.
+    Done 22-10-2014
+Dialogs for Network Errors
+  Discover Screen.init
+     Done 20-10-2014
+  Discover.Screen.discover
+     Done 21-10-2014
+  Master.Init.Screen
+     Done 20-10-2014
+  Update will be silent
+     Done 22-10-2014. 2 second notification after 5 consecutive missed updates
+  JourneySyncProgress
+     21-10-2014
