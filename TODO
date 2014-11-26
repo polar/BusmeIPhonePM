@@ -1,6 +1,5 @@
 Features That Need to be Implemented
 
-User Location on Map
 
 NearBy needs implementation
 
@@ -33,6 +32,8 @@ Icon for RouteView Back Button
 
 
 
+User Location on Map
+   Done 25-11-2014
 
 on AppDelegate:applicationDidBecomeActive
     Restore Timers

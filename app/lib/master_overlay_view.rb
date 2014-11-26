@@ -48,8 +48,6 @@ class MasterOverlayView < MKOverlayView
         updateJourneyLocation(event.eventData)
       when "VisibilityChanged"
         setNeedsDisplayInMapRect(overlay.boundingMapRect)
-      when "LocationUpdate"
-        updateDeviceLocation(event.eventData)
     end
    # puts "MasterOverlayView. Finished event #{event.eventName}"
   end
@@ -235,17 +233,27 @@ class MasterOverlayView < MKOverlayView
     imageRect
   end
 
+  def personIcon(projection)
+    @personIcon ||= UIImage.imageNamed("person.png")
+    @personIcons ||= {}
+    @personIcons[projection.zoomLevel] ||= @personIcon.scale_to([@personIcon.size.width, @personIcon.size.height]).flip(:horizontal)
+  end
+
   def drawDeviceLocation(mapRect, projection, context)
     loc = @location
     if loc
       coord = CLLocationCoordinate2D.new(loc.latitude, loc.longitude)
       mapPoint = MKMapPointForCoordinate(coord)
       cgPoint = pointForMapPoint(mapPoint)
-      x = cgPoint.x - 1/projection.zoomscale
-      y = cgPoint.y - 1/projection.zoomscale
-      @personIcon ||= UIImage.imageNamed("person.png")
-      image = @personIcon
-      imageRect = CGRectMake(x, y, image.size.width/projection.zoomscale, image.size.height/projection.zoomscale)
+      x = cgPoint.x
+      y = cgPoint.y
+
+      # MapRect are top left oriented, CGRects are bottom left oriented.
+      # Hotspot is the feet middle image.
+      image = personIcon(projection)
+      imageRect = CGRectMake(x - image.size.width/2.0, y, image.size.width, image.size.height)
+
+      PM.logger.info "#{self.class.name}:#{__method__} Scaled Image Rect #{imageRect.inspect}"
       @locationMapRect = mapRectForRect(imageRect)
       CGContextDrawImage(context, imageRect, image.cgimage)
     end
@@ -258,7 +266,7 @@ class MasterOverlayView < MKOverlayView
     mapPoint = MKMapPointForCoordinate(coord)
     @personIcon ||= UIImage.imageNamed("person.png")
     image = @personIcon
-    mapRect = MKMapRectMake(mapPoint.x, mapPoint.y, image.size.width, image.size.height)
+    mapRect = MKMapRectMake(mapPoint.x - 2*image.size.width/2.0, mapPoint.y + 2*image.size.height, 2*image.size.width, 2*image.size.height)
     setNeedsDisplayInMapRect(mapRect)
     setNeedsDisplayInMapRect(@locationMapRect) if @locationMapRect
   end

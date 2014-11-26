@@ -60,6 +60,7 @@ class MasterMapScreen < ProMotion::MapScreen
   def annotation_data
     []
   end
+  attr_accessor :deviceLocationAnnotation
 
   def after_init
     PM.logger.warn "MasterMapScreen:after_init: #{masterController.master.to_s}"
@@ -69,6 +70,7 @@ class MasterMapScreen < ProMotion::MapScreen
     masterController.api.uiEvents.registerForEvent("UpdateProgress", self)
     masterController.api.uiEvents.registerForEvent("BannerPresent:Display", self)
     masterController.api.uiEvents.registerForEvent("BannerPresent:Dismiss", self)
+    masterController.api.uiEvents.registerForEvent("LocationUpdate", self)
     setMaster(masterController.master)
     initNavBarActivityItem
     initActivityDialog(masterController.master)
@@ -201,6 +203,8 @@ class MasterMapScreen < ProMotion::MapScreen
       when "UpdateProgress"
        #puts "UpdateProgress: #{evd.action}"
         onUpdateProgress(evd)
+      when "LocationUpdate"
+        onLocationUpdate(evd)
     end
   end
 
@@ -248,9 +252,13 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def mapView(map_view, viewForAnnotation: annotation)
-    PM.logger.info "MasterMapScreen mapvView viewfor Annotation #{annotation}"
-    MarkerAnnotationView.get(annotation)
-
+    PM.logger.info "MasterMapScreen mapvView viewfor Annotation #{annotation.type}"
+    case annotation.type
+      when "MarkerAnnotation"
+        MarkerAnnotationView.get(annotation)
+      when "DeviceLocationAnnotation"
+        DeviceLocationAnnotationView.get(annotation)
+    end
   end
 
   def addMarker(marker)
@@ -260,29 +268,48 @@ class MasterMapScreen < ProMotion::MapScreen
 
   def removeMarker(marker)
     @promotion_annotation_data.each do |annotation|
-      if annotation.markerInfo.id = marker.id
+      if annotation.is_a?(MakerAnnotationView) && annotation.markerInfo.id = marker.id
         self.view.removeAnnotation(annotation)
       end
     end
   end
 
   def add_annotation(annotation)
-    @promotion_annotation_data << MarkerAnnotation.new(annotation)
-    self.view.addAnnotation @promotion_annotation_data.last
+    PM.logger.warn "#{self.class.name}:#{__method__}: #{annotation.inspect}"
+    if annotation.is_a?(Api::MarkerInfo)
+      @promotion_annotation_data << MarkerAnnotation.new(annotation)
+      self.view.addAnnotation @promotion_annotation_data.last
+    elsif annotation.is_a?(DeviceLocationAnnotation)
+      @promotion_annotation_data << annotation
+      self.view.addAnnotation @promotion_annotation_data.last
+    end
   end
 
   def add_annotations(annotations)
-    @promotion_annotation_data = Array(annotations).map{|a| MarkerAnnotation.new(a)}
-    self.view.addAnnotations @promotion_annotation_data
+
+  end
+
+  def onLocationUpdate(eventData)
+    loc = eventData.location
+    PM.logger.warn "Got a Location Update #{loc.inspect}"
+    if self.deviceLocationAnnotation
+      self.deviceLocationAnnotation.location = loc
+    else
+      PM.logger.warn "Creating DeviceLocationAnnotation #{loc.inspect}"
+      self.deviceLocationAnnotation = DeviceLocationAnnotation.new(loc)
+      self.add_annotation(deviceLocationAnnotation)
+    end
   end
 
 end
 
 class MarkerAnnotation
   attr_accessor :markerInfo
+  attr_accessor :type
 
   def initialize(markerInfo)
     self.markerInfo = markerInfo
+    self.type = self.class.name
   end
 
   def coordinate
@@ -316,7 +343,7 @@ class MarkerAnnotationView <  MKAnnotationView
     # The damn documentation says that positive values "move" down and to the right.
     # and negative values "move" up and to the left. I guess that depends on your
     # perspective. We need to move the view so that the coordinate is at the
-    # bottom left, which I would think means move the picutre from its intended
+    # bottom left, which I would think means move the picture from its intended
     # point up half the height and to the right half the width, i.e. negative, positive.
     # So, I don't really know what the documentation's logical
     # perspective is, but it's the opposite. And it still looks off.
