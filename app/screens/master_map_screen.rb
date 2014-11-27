@@ -57,6 +57,13 @@ class MasterMapScreen < ProMotion::MapScreen
     end
   end
 
+  ##
+  # We nullify this effect as we are managing our own annotations
+  #
+  def update_annotation_data
+
+  end
+
   def annotation_data
     []
   end
@@ -90,7 +97,6 @@ class MasterMapScreen < ProMotion::MapScreen
     routes_view.viewWillAppear(false)
     view.setAutoresizesSubviews(false)
     #routes_view.view.setAutoresizingMask UIViewAutoresizingFlexibleLeftMargin
-    show_user_location
   end
 
   def move_to_user_location
@@ -268,7 +274,7 @@ class MasterMapScreen < ProMotion::MapScreen
 
   def removeMarker(marker)
     @promotion_annotation_data.each do |annotation|
-      if annotation.is_a?(MakerAnnotationView) && annotation.markerInfo.id = marker.id
+      if annotation.is_a?(MarkerAnnotationView) && annotation.markerInfo.id = marker.id
         self.view.removeAnnotation(annotation)
       end
     end
@@ -291,7 +297,7 @@ class MasterMapScreen < ProMotion::MapScreen
 
   def onLocationUpdate(eventData)
     loc = eventData.location
-    PM.logger.warn "Got a Location Update #{loc.inspect}"
+    PM.logger.warn "Got a Location Update #{loc.inspect} annotations #{self.view.annotations.inspect}"
     if self.deviceLocationAnnotation
       self.deviceLocationAnnotation.location = loc
     else

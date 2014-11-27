@@ -32,7 +32,6 @@ class MasterOverlayView < MKOverlayView
     masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
     masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
     masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
-    masterController.api.uiEvents.registerForEvent("LocationUpdate", self)
   end
 
   def onBuspassEvent(event)
@@ -115,7 +114,6 @@ class MasterOverlayView < MKOverlayView
     # We draw locators over the paths.
     drawLocators(mapRect, p, context)
    # puts "<<<<< Exit DrawMapRect #{thisCount} at #{p}"
-    drawDeviceLocation(mapRect, p, context)
   end
 
   def drawPaths(mapRect, projection, context)
@@ -231,43 +229,5 @@ class MasterOverlayView < MKOverlayView
    # puts "drawBusArrow #{projection.zoomscale} at #{point.inspect} #{direction} into #{printRect imageRect} #{printmRect mapRectForRect(iageRect)}"
     CGContextDrawImage(cgContext, imageRect, icon.image.cgimage)
     imageRect
-  end
-
-  def personIcon(projection)
-    @personIcon ||= UIImage.imageNamed("person.png")
-    @personIcons ||= {}
-    @personIcons[projection.zoomLevel] ||= @personIcon.scale_to([@personIcon.size.width, @personIcon.size.height]).flip(:horizontal)
-  end
-
-  def drawDeviceLocation(mapRect, projection, context)
-    loc = @location
-    if loc
-      coord = CLLocationCoordinate2D.new(loc.latitude, loc.longitude)
-      mapPoint = MKMapPointForCoordinate(coord)
-      cgPoint = pointForMapPoint(mapPoint)
-      x = cgPoint.x
-      y = cgPoint.y
-
-      # MapRect are top left oriented, CGRects are bottom left oriented.
-      # Hotspot is the feet middle image.
-      image = personIcon(projection)
-      imageRect = CGRectMake(x - image.size.width/2.0, y, image.size.width, image.size.height)
-
-      PM.logger.info "#{self.class.name}:#{__method__} Scaled Image Rect #{imageRect.inspect}"
-      @locationMapRect = mapRectForRect(imageRect)
-      CGContextDrawImage(context, imageRect, image.cgimage)
-    end
-  end
-
-  def updateDeviceLocation(eventData)
-    PM.logger.info "#{self.class.name}:#{__method__} #{eventData.location} #{eventData.time}"
-    loc = @location = eventData.location
-    coord = CLLocationCoordinate2D.new(loc.latitude, loc.longitude)
-    mapPoint = MKMapPointForCoordinate(coord)
-    @personIcon ||= UIImage.imageNamed("person.png")
-    image = @personIcon
-    mapRect = MKMapRectMake(mapPoint.x - 2*image.size.width/2.0, mapPoint.y + 2*image.size.height, 2*image.size.width, 2*image.size.height)
-    setNeedsDisplayInMapRect(mapRect)
-    setNeedsDisplayInMapRect(@locationMapRect) if @locationMapRect
   end
 end

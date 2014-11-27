@@ -176,7 +176,7 @@ class MasterMainMenu < MenuScreen
   end
 
   def nearby(title)
-   #puts "Neaby #{title}"
+    puts "Neaby #{title}"
     case title
       when "Show All"
         masterController.journeyVisibilityController.setNearByState(false)

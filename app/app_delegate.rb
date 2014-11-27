@@ -612,17 +612,17 @@ class AppDelegate < PM::Delegate
   def locsyr
     loc(-76.1315307617188, 43.03726196289)
   end
-  def u
-    loc(@last_location.longitude, @last_location.latitude + 0.0001)
+  def u(x=1)
+    loc(@last_location.longitude, @last_location.latitude + 0.0001 * x)
   end
-  def d
-    loc(@last_location.longitude, @last_location.latitude - 0.0001)
+  def d(x=1)
+    loc(@last_location.longitude, @last_location.latitude - 0.0001 * x)
   end
-  def r
-    loc(@last_location.longitude + 0.0001, @last_location.latitude)
+  def r(x=1)
+    loc(@last_location.longitude + 0.0001 * x, @last_location.latitude)
   end
-  def l
-    loc(@last_location.longitude - 0.0001, @last_location.latitude)
+  def l(x=1)
+    loc(@last_location.longitude - 0.0001 * x, @last_location.latitude)
   end
 
 end
