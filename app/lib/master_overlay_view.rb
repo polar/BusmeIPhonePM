@@ -188,10 +188,21 @@ class MasterOverlayView < MKOverlayView
 
   def drawLocators(mapRect, projection, context)
     jds = masterController.journeyDisplayController.getJourneyDisplays.dup
+    highlighted = nil
     jds.each do |jd|
       loc = jd.route.lastKnownLocation
       if loc && jd.isPathVisible?
-        drawLocator(jd, loc, mapRect, projection, context)
+        if ! jd.isPathHighlighted?
+          drawLocator(jd, loc, mapRect, projection, context)
+        else
+          highlighted = jd
+        end
+      end
+    end
+    if highlighted
+      loc = highlighted.route.lastKnownLocation
+      if loc
+        drawLocator(highlighted, loc, mapRect, projection, context)
       end
     end
   end

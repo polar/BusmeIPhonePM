@@ -1,8 +1,6 @@
 Features That Need to be Implemented
 
 
-NearBy needs implementation
-
 HighLighting Journey needs to bring map locator icon to the top of all others.
 
 Reporting/Posting needs to be implemented
@@ -31,6 +29,8 @@ Banner Message Processing (click thrus)
 Icon for RouteView Back Button
 
 
+NearBy needs implementation
+   Done 25-11-2014
 
 User Location on Map
    Done 25-11-2014
