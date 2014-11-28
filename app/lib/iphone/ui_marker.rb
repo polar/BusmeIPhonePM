@@ -1,10 +1,20 @@
 class UIMarker < UIButton
   include SugarCube::CoreGraphics
   attr_accessor :markerInfo
+  attr_reader   :masterMapScreen
+  attr_reader   :markerViewController
 
-  def self.markerWith(markerInfo)
+  def self.markerWith(markerInfo, masterMapScreen)
     marker = self.alloc.init
-    marker.initWith(markerInfo)
+    marker.initWith(markerInfo, masterMapScreen)
+  end
+
+  def masterMapScreen=(ms)
+    @masterMapScreen = WeakRef.new(ms)
+  end
+
+  def markerViewController=(mvc)
+    @markerViewController = mvc
   end
 
   #          (---------)
@@ -71,13 +81,14 @@ class UIMarker < UIButton
     self.size = pointed.size
   end
 
-  def initWith(markerInfo)
+  def initWith(markerInfo, masterMapScreen)
     self.markerInfo = markerInfo
     self.setTitleColor(:black.uicolor, forState: UIControlStateNormal)
     self.titleLabel.shadowOffset = Size(1,1)
     self.setTitleShadowColor(:gray.uicolor, forState: UIControlStateNormal)
     self.setTitle(markerInfo.title)
     self.addTarget(self, action: "buttonClicked:",  forControlEvents: UIControlEventTouchUpInside)
+    self.masterMapScreen = masterMapScreen
     self
   end
 
@@ -87,7 +98,9 @@ class UIMarker < UIButton
   end
 
   def buttonClicked(sender)
-    puts "button clicked! #{sender.markerInfo.inspect}"
+    puts "#{self.class.name}:#{__method__} #{sender.markerInfo.inspect}"
+    self.markerViewController ||= MarkerMessageViewController.new(markerInfo, masterMapScreen)
+    markerViewController.display
   end
 
   def add(view, options = {})

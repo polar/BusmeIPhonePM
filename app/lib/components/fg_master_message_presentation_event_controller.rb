@@ -17,7 +17,7 @@ class FGMasterMessagePresentationEventController < Platform::FG_MasterMessagePre
     PM.logger.info "FGMasterMessageController. dismissMasterMessage(#{message.inspect})"
     if messageViewController
       messageViewController.dismiss
-      messageViewController = nil
+      self.messageViewController = nil
     end
   end
 

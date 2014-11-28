@@ -48,7 +48,7 @@ class AppDelegate < PM::Delegate
       end
     rescue Exception => boom
       puts "#{boom}"
-    end if true
+    end if false
 
 
     self.configurator = Configurator.new
@@ -279,7 +279,7 @@ class AppDelegate < PM::Delegate
     evd = event.eventData
     case evd.action
       when P_DONE
-        if ! timersStarted
+        if ! timersStarted && journeySyncTimer && updateTimer
           PM.logger.info "Starting Sync and UpdateTimers"
           journeySyncTimer.start
           updateTimer.start

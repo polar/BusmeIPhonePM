@@ -261,7 +261,7 @@ class MasterMapScreen < ProMotion::MapScreen
     PM.logger.info "MasterMapScreen mapvView viewfor Annotation #{annotation.type}"
     case annotation.type
       when "MarkerAnnotation"
-        MarkerAnnotationView.get(annotation)
+        MarkerAnnotationView.get(annotation, self)
       when "DeviceLocationAnnotation"
         DeviceLocationAnnotationView.get(annotation)
     end
@@ -332,12 +332,15 @@ class MarkerAnnotation
 end
 
 class MarkerAnnotationView <  MKAnnotationView
+
+  attr_reader :masterMapScreen
+
   @@count = 0
-  def self.get(marker)
+  def self.get(marker, masterMapScreen)
     @@count += 1
     PM.logger.info "MarkerAnnoationView.get #{marker.inspect} #{@@count}"
     mv = self.alloc.initWithAnnotation(marker, reuseIdentifier:"Marker#{@@count}")
-    mv.setup
+    mv.setup(masterMapScreen)
     mv
   end
 
@@ -359,8 +362,8 @@ class MarkerAnnotationView <  MKAnnotationView
   end
 
   attr_accessor :markerView
-  def setup
-    self.markerView = UIMarker.markerWith(markerInfo)
+  def setup(masterMapScreen)
+    self.markerView = UIMarker.markerWith(markerInfo, masterMapScreen)
     self.size = markerView.size
     markerView.add(self, :at => CGPoint.new(0,0))
   end

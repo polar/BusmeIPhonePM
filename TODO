@@ -1,9 +1,9 @@
 Features That Need to be Implemented
 
 
+Login Processing
 
 Reporting/Posting needs to be implemented
-
 
 on AppDelegate:applicationDidEnterBackground:
    If we have reporting going on, keep it going.
@@ -17,16 +17,16 @@ Routes View needs to shrink to only available in the table screen.
 
 Busme Logo Splash Screen
 
-Login Processing
-
-Marker Message Processing
-
 Master Message Processing (click thrus)
 
 Banner Message Processing (click thrus)
 
 Icon for RouteView Back Button
 
+
+
+Marker Message Processing
+  Done 26-11-2014
 
 HighLighting Journey needs to bring map locator icon to the top of all others.
     Done 25-11-2014

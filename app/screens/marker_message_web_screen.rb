@@ -1,4 +1,4 @@
-class MasterMessageWebScreen < PM::WebScreen
+class MarkerMessageWebScreen < PM::WebScreen
 
   def screen_init(args)
     @title = args[:title]
