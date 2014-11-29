@@ -146,7 +146,22 @@ class MasterMainMenu < MenuScreen
 
 
   def report(title)
-   #puts "REPORT #{title}"
+   puts "REPORT #{title}"
+   if mainController
+     if mainController.masterController
+       api = mainController.masterController.api
+       if api
+         login = Api::Login.new
+         login.roleIntent = title == "Driver" ? :driver : :passenger
+         login.quiet = false
+         login.loginTries = 0
+         loginManager = Api::LoginManager.new(api, login)
+         eventData = Platform::LoginEventData.new(loginManager)
+         login.loginState = Api::Login::LS_LOGIN
+         api.uiEvents.postEvent("LoginEvent", eventData)
+       end
+     end
+   end
   end
 
   def busme(title)
