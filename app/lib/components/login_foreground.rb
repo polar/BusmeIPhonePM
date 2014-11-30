@@ -12,16 +12,21 @@ class LoginForeground < Platform::LoginForeground
           :message => "Login with Email",
           :buttons => ["Cancel", "Login"],
           :style => :login_and_password_input,
-          :cancel_button_index => 0) do
+          :cancel_button_index => 0) do |alertView|
 
         puts "#{self.class.name}:#{__method__} Register Clicked!"
 
-        loginManager = @eventData.loginManager
-        login = loginManager.login
-        login.email = @passwordDriverView.textFieldAtIndex(0).text
-        login.password = @passwordDriverView.textFieldAtIndex(1).text
-        self.onSubmit(@eventData)
+        if alertView.clicked_button.index == 0
+          self.onCancel(eventData)
+        else
+          loginManager = @eventData.loginManager
+          login = loginManager.login
+          login.email = @passwordDriverView.textFieldAtIndex(0).text
+          login.password = @passwordDriverView.textFieldAtIndex(1).text
+          self.onSubmit(@eventData)
+        end
       end
+      @passwordDriverView.textFieldAtIndex(0).setText(login.email)
       @passwordDriverView.show
     else
       @passwordView ||= BW::UIAlertView.new(
@@ -29,16 +34,20 @@ class LoginForeground < Platform::LoginForeground
           :message => "Login with Email",
           :buttons => ["Cancel", "Login"],
           :style => :login_and_password_input,
-          :cancel_button_index => 0) do
+          :cancel_button_index => 0) do |alertView|
 
         puts "#{self.class.name}:#{__method__} Register Clicked!"
-
-        loginManager = @eventData.loginManager
-        login = loginManager.login
-        login.email = @passwordView.textFieldAtIndex(0).text
-        login.password = @passwordView.textFieldAtIndex(1).text
-        self.onSubmit(@eventData)
+        if alertView.clicked_button.index == 0
+          onCancel(eventData)
+        else
+          loginManager = @eventData.loginManager
+          login = loginManager.login
+          login.email = @passwordView.textFieldAtIndex(0).text
+          login.password = @passwordView.textFieldAtIndex(1).text
+          self.onSubmit(@eventData)
+        end
       end
+      @passwordView.textFieldAtIndex(0).setText(login.email)
       @passwordView.show
     end
   end
@@ -55,16 +64,21 @@ class LoginForeground < Platform::LoginForeground
           :message => "Register with Email and Driver Auth Code",
           :buttons => ["Cancel", "Register"],
           :style => :login_and_password_input,
-          :cancel_button_index => 0) do
+          :cancel_button_index => 0) do |alertView|
 
         puts "#{self.class.name}:#{__method__} Register Clicked!"
 
-        loginManager = @eventData.loginManager
-        login = loginManager.login
-        login.email = @registerDriverView.textFieldAtIndex(0).text
-        login.password = @registerDriverView.textFieldAtIndex(1).text
-        self.onSubmit(@eventData)
+        if alertView.clicked_button.index == 0
+          self.onCancel(eventData)
+        else
+          loginManager = @eventData.loginManager
+          login = loginManager.login
+          login.email = @registerDriverView.textFieldAtIndex(0).text
+          login.password = @registerDriverView.textFieldAtIndex(1).text
+          self.onSubmit(@eventData)
+        end
       end
+      @registerDriverView.textFieldAtIndex(0).setText(login.email)
       @registerDriverView.show
     else
       @registerView ||= BW::UIAlertView.new(
@@ -72,16 +86,21 @@ class LoginForeground < Platform::LoginForeground
           :message => "Register with Email",
           :buttons => ["Cancel", "Register"],
           :style => :login_and_password_input,
-          :cancel_button_index => 0) do
+          :cancel_button_index => 0) do |alertView|
 
         puts "#{self.class.name}:#{__method__} Register Clicked!"
 
-        loginManager = @eventData.loginManager
-        login = loginManager.login
-        login.email = @registerView.textFieldAtIndex(0).text
-        login.password = @registerView.textFieldAtIndex(1).text
-        self.onSubmit(@eventData)
+        if alertView.clicked_button.index == 0
+          self.onCancel(eventData)
+        else
+          loginManager = @eventData.loginManager
+          login = loginManager.login
+          login.email = @registerView.textFieldAtIndex(0).text
+          login.password = @registerView.textFieldAtIndex(1).text
+          self.onSubmit(@eventData)
+        end
       end
+      @registerView.textFieldAtIndex(0).setText(login.email)
       @registerView.show
     end
   end

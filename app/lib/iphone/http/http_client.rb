@@ -105,9 +105,11 @@ module IPhone
           match = /(\w*)\[\]\Z/.match k
           if match
             k = match[1]
+            afParams[k] ||= []
+            afParams[k] << v
+          else
+            afParams[k] = v
           end
-          afParams[k] ||= []
-          afParams[k] << v
         end
         resp = AFMotion::HTTP.post(url, afParams) do |result|
           # This thread always seems to be the apple-main-thread!
