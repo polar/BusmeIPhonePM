@@ -21,6 +21,7 @@ gem "sugarcube", :require => ["sugarcube-nsuserdefaults",
                               ]
 gem "ProMotion-map"
 gem "ProMotion-menu"
+gem "ProMotion-form"
 gem 'busme-iphone-rubylib', :require => "busme/motion",
               :path => "/Users/polar/src/busme-iphone-rubylib"
               #:git => "https://github.com/polar/busme-iphone-rubylib.git"

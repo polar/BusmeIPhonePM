@@ -1,5 +1,11 @@
 class LoginForeground < Platform::LoginForeground
 
+  attr_accessor :masterMapScreen
+  def initialize(api, masterMapScreen)
+    super(api)
+    self.masterMapScreen = masterMapScreen
+  end
+
   def presentPasswordLogin(eventData)
     @eventData = eventData
     loginManager = @eventData.loginManager
@@ -52,7 +58,16 @@ class LoginForeground < Platform::LoginForeground
     end
   end
 
+  attr_accessor :registerView
   def presentRegisterLogin(eventData)
+    self.registerView ||= RegisterScreen.new(:nav_bar => true)
+    self.registerView.masterController = masterMapScreen.masterController
+    self.registerView.loginForeground = self
+    self.registerView.eventData = eventData
+    masterMapScreen.open registerView
+  end
+
+  def presentRegisterLogin1(eventData)
     @eventData = eventData
     loginManager = @eventData.loginManager
     login = loginManager.login
@@ -79,6 +94,10 @@ class LoginForeground < Platform::LoginForeground
         end
       end
       @registerDriverView.textFieldAtIndex(0).setText(login.email)
+      origin = @registerDriverView.textFieldAtIndex(1).frame.origin
+      size = @registerDriverView.textFieldAtIndex(1).frame.size
+      rect = CGRect.new([origin.x, origin.y + size.height], size)
+      @registerDriverView.addSubview(UITextField.alloc.initWithFrame(rect))
       @registerDriverView.show
     else
       @registerView ||= BW::UIAlertView.new(

@@ -63,7 +63,7 @@ class DiscoverMainMenu < MenuScreen
    #puts "Exit #{title}"
   end
 
-  def busme(title)
+  def busme(screen, title)
    #puts "BUSME #{title}"
     case title
       when "Select"

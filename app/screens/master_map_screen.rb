@@ -40,6 +40,9 @@ class MasterMapScreen < ProMotion::MapScreen
   attr_accessor :fgBannerPresentationEventController
   attr_accessor :fgMarkerPresentationEventController
   attr_accessor :fgMasterMessagePresentationEventController
+  attr_accessor :fgLoginController
+
+  attr_accessor :journeySelectionScreen
 
   def self.newScreen(args)
    #puts "Initialize Busme Screen"
@@ -78,6 +81,7 @@ class MasterMapScreen < ProMotion::MapScreen
     masterController.api.uiEvents.registerForEvent("BannerPresent:Display", self)
     masterController.api.uiEvents.registerForEvent("BannerPresent:Dismiss", self)
     masterController.api.uiEvents.registerForEvent("LocationUpdate", self)
+    masterController.api.uiEvents.registerForEvent("LoginEvent", self)
     setMaster(masterController.master)
     initNavBarActivityItem
     initActivityDialog(masterController.master)
@@ -86,6 +90,7 @@ class MasterMapScreen < ProMotion::MapScreen
     self.fgBannerPresentationEventController = FGBannerPresentationEventController.new(masterController.api, self)
     self.fgMarkerPresentationEventController = FGMarkerPresentationEventController.new(masterController.api, self)
     self.fgMasterMessagePresentationEventController = FGMasterMessagePresentationEventController.new(masterController.api, self)
+    self.fgLoginController = LoginForeground.new(masterController.api, self)
 
     self.routes_view = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
     view.addSubview(routes_view.view)
@@ -211,6 +216,8 @@ class MasterMapScreen < ProMotion::MapScreen
         onUpdateProgress(evd)
       when "LocationUpdate"
         onLocationUpdate(evd)
+      when "LoginEvent"
+        onLogin(evd)
     end
   end
 
@@ -307,6 +314,17 @@ class MasterMapScreen < ProMotion::MapScreen
     end
   end
 
+  ##
+  # This call is basically when a login spawned by the reporting screen.
+  # This is the continuation.
+  def onLogin(eventData)
+    PM.logger.info "#{self.class.name}:#{__method__} eventData #{eventData}"
+    if eventData.loginManager.is_a?(ReportingLoginManager)
+      if eventData.loginManager.login.loginState == Api::Login::LS_LOGGED_IN
+        eventData.loginManager.onScreen(self)
+      end
+    end
+  end
 end
 
 class MarkerAnnotation

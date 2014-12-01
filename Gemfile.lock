@@ -10,6 +10,9 @@ GEM
   specs:
     ProMotion (2.0.1)
       methadone (~> 1.4)
+    ProMotion-form (0.3.0)
+      ProMotion (~> 2.0)
+      motion-cocoapods (~> 1.4)
     ProMotion-map (0.4.2)
       ProMotion (~> 2.0)
     ProMotion-menu (1.0.0.beta2)
@@ -81,6 +84,7 @@ PLATFORMS
 
 DEPENDENCIES
   ProMotion
+  ProMotion-form
   ProMotion-map
   ProMotion-menu
   afmotion

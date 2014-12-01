@@ -3,15 +3,16 @@ class MasterMainMenu < MenuScreen
   attr_accessor :mainController
   attr_accessor :masterController
   attr_accessor :masterMapScreen
+  attr_accessor :journeySelectionScreen
 
   def self.newMenu(args)
-    mainController = args.delete :mainController
-    masterMapScreen = args.delete :masterMapScreen
-    masterController = args.delete :masterController
-    m = self.new(args)
-    m.masterMapScreen = masterMapScreen
+    mainController     = args.delete :mainController
+    masterMapScreen    = args.delete :masterMapScreen
+    masterController   = args.delete :masterController
+    m                  = self.new(args)
+    m.masterMapScreen  = masterMapScreen
     m.masterController = masterController
-    m.mainController = mainController
+    m.mainController   = mainController
     m.after_init
     m
   end
@@ -31,18 +32,18 @@ class MasterMainMenu < MenuScreen
   def reporting_menu
     {
         :title => "Reporting",
-        :menu => [
+        :menu  => [
             {
-                title: "Driver",
+                title:  "Driver",
                 action: :report
-            },{
-                title: "Passenger",
+            }, {
+                title:  "Passenger",
                 action: :report
-            },{
-                title: "Stop",
+            }, {
+                title:  "Stop",
                 action: :report
-            },{
-                title: "Logout",
+            }, {
+                title:  "Logout",
                 action: :report
             },
         ]
@@ -52,65 +53,65 @@ class MasterMainMenu < MenuScreen
   def busme_transit_menu
     {
         :title => "Busme Transit Systems",
-        :menu =>[{
-                     title: "Select",
-                     action: :busme
-                 },{
-                     title: "Set as Default",
-                     action: :busme
-                 },{
-                     title: "Remove As Default",
-                     action: :busme
-                 }]
+        :menu  => [{
+                       title:  "Select",
+                       action: :busme
+                   }, {
+                       title:  "Set as Default",
+                       action: :busme
+                   }, {
+                       title:  "Remove As Default",
+                       action: :busme
+                   }]
     }
   end
 
   def nearby_menu
-    state = masterController.journeyVisibilityController.getCurrentState
-    nearBy = state.nearBy
+    state          = masterController.journeyVisibilityController.getCurrentState
+    nearBy         = state.nearBy
     nearByDistance = masterController.journeyVisibilityController.nearByDistance
-    types = {}
-    types[0] = !nearBy ? :checkmark : :none
-    types[2000] = nearBy && nearByDistance == 2000 ? :checkmark : :none
-    types[1000] = nearBy && nearByDistance == 1000 ? :checkmark : :none
-    types[500] = nearBy && nearByDistance == 500 ? :checkmark : :none
+    types          = {}
+    types[0]       = !nearBy ? :checkmark : :none
+    types[2000]    = nearBy && nearByDistance == 2000 ? :checkmark : :none
+    types[1000]    = nearBy && nearByDistance == 1000 ? :checkmark : :none
+    types[500]     = nearBy && nearByDistance == 500 ? :checkmark : :none
     {
         :title => "Nearby Routes",
-        :menu => [{
-                      :title => "Show All",
-                      :action => :nearby,
-                      :accessory_type => types[0]
-                  },{
-                      :title => "Only within 2000 feet",
-                      :action => :nearby,
-                      :accessory_type => types[2000]
-                  },{
-                      :title => "Only within 1000 feet",
-                      :action => :nearby,
-                      :accessory_type => types[1000]
-                  },{
-                      :title => "Only within 500 feet",
-                      :action => :nearby,
-                      :accessory_type => types[500]
-                  }
+        :menu  => [{
+                       :title          => "Show All",
+                       :action         => :nearby,
+                       :accessory_type => types[0]
+                   }, {
+                       :title          => "Only within 2000 feet",
+                       :action         => :nearby,
+                       :accessory_type => types[2000]
+                   }, {
+                       :title          => "Only within 1000 feet",
+                       :action         => :nearby,
+                       :accessory_type => types[1000]
+                   }, {
+                       :title          => "Only within 500 feet",
+                       :action         => :nearby,
+                       :accessory_type => types[500]
+                   }
         ]
     }
   end
 
   def active_menu
     state = masterController.journeyVisibilityController.getCurrentState
-    only = state.onlyActive
+    only  = state.onlyActive
     {
         :title => "Active Routes",
-        :menu => [{
-                      :title => "Show All",
-                      :action => :active,
-                      :accessory_type => ! state.onlyActive ? :checkmark : :none
-                  },{
-                      :title => "Show only Active",
-                      :action => :active,
-                      :accessory_type => state.onlyActive ? :checkmark : :none
-                  }
+        :menu  => [{
+                       :title          => "Show All",
+                       :action         => :active,
+                       :accessory_type => !state.onlyActive ? :checkmark : :none
+                   }, {
+                       :title          => "Show only Active",
+                       :action         => :active,
+                       :accessory_type => state.onlyActive ? :checkmark : :none
+                   }
         ]
     }
   end
@@ -118,17 +119,17 @@ class MasterMainMenu < MenuScreen
   def reload_menu
     {
         :title => "Reload",
-        :menu => [{
-                      :title => "Reload All",
-                      :action => :reload
-                  }
+        :menu  => [{
+                       :title  => "Reload All",
+                       :action => :reload
+                   }
         ]
     }
   end
 
   def cancel_menu
     {
-        :title => "Cancel",
+        :title  => "Cancel",
         :action => :cancel
     }
   end
@@ -144,27 +145,93 @@ class MasterMainMenu < MenuScreen
   end
 
 
-
-  def report(title)
-   puts "REPORT #{title}"
-   if mainController
-     if mainController.masterController
-       api = mainController.masterController.api
-       if api
-         login = Api::Login.new
-         login.roleIntent = title == "Driver" ? :driver : :passenger
-         login.quiet = false
-         login.loginTries = 0
-         loginManager = Api::LoginManager.new(api, login)
-         eventData = Platform::LoginEventData.new(loginManager)
-         login.loginState = Api::Login::LS_LOGIN
-         api.uiEvents.postEvent("LoginEvent", eventData)
-       end
-     end
-   end
+  def report(screen, title)
+    puts "REPORT #{title}"
+    case title
+      when "Driver", "Passenger"
+        startReporting(screen, title)
+      when "Stop"
+        # TODO: Stop Reporting
+        true
+      when "Logout"
+        # TODO: Logout
+        true
+    end
   end
 
-  def busme(title)
+  def startReporting(screen, title)
+    if mainController
+      if masterController = mainController.masterController
+        if api = mainController.masterController.api
+          # We should have at least one. Current can be later.
+          if masterController.locationController.lastKnownLocation
+            if !(login = api.loggedIn?)
+              login            = Api::Login.new
+              login.roleIntent = title == "Driver" ? :driver : :passenger
+              login.quiet      = false
+              login.loginTries = 0
+              loginManager     = ReportingLoginManager.new(api, login)
+              eventData        = Platform::LoginEventData.new(loginManager)
+              login.loginState = Api::Login::LS_LOGIN
+              api.uiEvents.postEvent("LoginEvent", eventData)
+              true
+            else
+              if title == "Driver" && !login.roles.include?(:driver)
+                @notAuthorizedView = BW::UIAlertView.default(
+                    :title   => "Not Authorized",
+                    :message => "You are not authorized as a driver, you are posting as a passenger"
+                )
+                @notAuthorizedView.show
+                2.seconds.later do
+                  if @notAuthorizedView
+                    @notAuthorizedView.dismissWithClickedButtonIndex(0, animated: true)
+                    @notAuthorizedView = nil
+                  end
+                end
+                true
+              else
+                showSelections(screen)
+              end
+            end
+          else
+            #TODO: Check last update time
+            @noLocationAlertView = BW::UIAlertView.default(
+                :title   => "No Location",
+                :message => "We have not yet gotten a GPS location from your device")
+            @noLocationAlertView.show
+            4.seconds.later do
+              if @noLocationAlertView
+                @noLocationAlertView.dismissWithClickedButtonIndex(0, animated: true)
+                @noLocationAlertView = nil
+              end
+            end
+            true
+          end
+        end
+      end
+    end
+  end
+
+  def showSelections(screen)
+    self.journeySelectionScreen ||= JourneySelectionScreen.new(:nav_bar => true)
+    journeySelectionScreen.parent = screen  # This is need to close up the menu
+    journeySelectionScreen.masterController = mainController.masterController
+    journeySelectionScreen.location         = mainController.masterController.locationController.currentLocation
+
+    journeys = journeySelectionScreen.journeys
+    if journeys.empty?
+      alertView = BW::UIAlertView.new(
+          :title => "No suitable journeys",
+          :message => "Cannot find a suitable journey close to your location")
+      alertView.show
+      true
+    else
+      screen.open journeySelectionScreen
+      false
+    end
+  end
+
+  def busme(screen, title)
     puts "Busme #{title}"
     case title
       when "Select"
@@ -188,9 +255,10 @@ class MasterMainMenu < MenuScreen
           end
         end
     end
+    true
   end
 
-  def nearby(title)
+  def nearby(screen, title)
     puts "Neaby #{title}"
     case title
       when "Show All"
@@ -210,11 +278,12 @@ class MasterMainMenu < MenuScreen
         masterController.api.uiEvents.postEvent("VisibilityChanged")
     end
     update_menu_data
+    true
   end
 
-  def active(title)
+  def active(screen, title)
     state = masterController.journeyVisibilityController.getCurrentState
-   #puts "Active #{title}"
+    #puts "Active #{title}"
     case title
       when "Show All"
         if state.onlyActive
@@ -230,9 +299,10 @@ class MasterMainMenu < MenuScreen
           update_menu_data
         end
     end
+    true
   end
 
-  def reload(title)
+  def reload(screen, title)
     case title
       when "Reload All"
         # post a reload followed by an immediate sync.
@@ -240,5 +310,6 @@ class MasterMainMenu < MenuScreen
         evd = Platform::JourneySyncEventData.new(isForced: true)
         masterController.api.bgEvents.postEvent("JourneySync", evd)
     end
+    true
   end
 end

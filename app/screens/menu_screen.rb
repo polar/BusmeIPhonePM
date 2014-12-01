@@ -43,7 +43,7 @@ class MenuScreen < PM::TableScreen
         @table_cells << { title: cell[:title], action: :open_menu, arguments: m, accessory_type: :disclosure_indicator}
         @menus << m
       else
-        if cell[:action].to_sym == :cancel
+        if cell[:action] && cell[:action].to_sym == :cancel
           @table_cells << { title: cell[:title], action: :cancel }
         else
           item = cell.dup
@@ -61,18 +61,21 @@ class MenuScreen < PM::TableScreen
   end
 
   def doit(args)
-    action, title, arguments = args
+    action, name, arguments = args
+    screen = self
     p = self
     while p.parent != nil
       p = p.parent
     end
+    closeit = true
     if p.respond_to? action
       arguments ||= []
       arguments = [arguments] unless arguments.is_a?(Array)
-      arguments = [title] + arguments
-      p.send(action, *arguments)
+      arguments = [screen, name] + arguments
+      closeit = p.send(action, *arguments)
+      PM.logger.info "#{self.class.name}:#{__method__} action #{action} closeit = #{closeit}"
     end
-    close_up
+    close_up if closeit
   end
 
   def make_menu(parent, title, cell)
@@ -95,13 +98,37 @@ class MenuScreen < PM::TableScreen
          cells: @table_cells }]
   end
 
+  def close
+    PM.logger.info "#{self.class.name}:#{__method__} #{title}"
+    super
+  end
+
+
+  ##
+  # Close up the Menu Screen heirarchy.
+  #
   def close_up
-    p = self
-    while p.parent != nil
-      p.close
-      p = p.parent
+    PM.logger.info "#{self.class.name}:#{__method__} #{title}"
+    #
+    # This iOS seems to miss consecutive closes for some reason.
+    # So we us this instance variable to handle calling close_up
+    # on the parent, when this window finally goes away. See on_disappear
+    # call back.
+    @closeUp = true
+    close # this call can be missed for some reason at the top of the chain.
+    parent.close_up if parent
+  end
+
+  ##
+  # This is a call back for didDisappear
+  #
+  def on_disappear
+    # Because iOS seems to miss close commands up the heirarchy
+    # we trigger them on the window disappearing.
+    if @closeUp
+      parent.close_up if parent
+      @closeUp = false
     end
-    p.close
   end
 
   def cancel
