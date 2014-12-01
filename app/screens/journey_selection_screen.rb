@@ -54,6 +54,58 @@ class JourneySelectionScreen < PM::TableScreen
 
   def hit(jd)
     PM.logger.warn "#{self.class.name}:#{__method__} : #{jd.route.name}"
+    loc = masterController.locationController.currentLocation
+    if loc
+      dist = Platform::GeoPathUtils.offPath(jd.route.getPath(0), loc)
+      if true || dist > 60
+        @distanceAlertView = BW::UIAlertView.default(
+            :title => "Distance Too Far",
+            :message => "You are currently #{dist} feet from the route. Do you want to post for this route",
+            :buttons => ["Cancel", "Yes"]
+        ) do |alert|
+          # I'm really not sure if jd will be available on this callback.
+          alertView(alert,  alert.clicked_button.index, jd)
+        end
+        @distanceAlertView.show
+      else
+        if login = masterController.api.loggedIn?
+          evd = Platform::JourneyEventData.new
+          evd.route = jd.route
+          evd.role = login.roleIntent
+          masterController.api.bgEvents.postEvent("JourneyStartPosting", evd)
+          close_up
+        else
+          @notLoggedInAlertView = BW::UIAlertView.default(
+               :title => "Not Logged In",
+               :message => "You are not currently logged in. Try again"
+          )
+          close_up
+        end
+      end
+    end
+  end
+
+  def alertView(alertView, index, jd)
+    PM.logger.warn "#{self.class.name}:#{__method__} : #{index}"
+    if alertView == @distanceAlertView
+      if index == 1
+        if login = masterController.api.loggedIn?
+          evd = Platform::JourneyEventData.new
+          evd.route = jd.route
+          evd.role = login.roleIntent
+          masterController.api.bgEvents.postEvent("JourneyStartPosting", evd)
+        else
+          @notLoggedInAlertView = BW::UIAlertView.default(
+              :title => "Not Logged In",
+              :message => "You are not currently logged in. Try again"
+          )
+        end
+      end
+      @distanceAlertView = nil
+    end
+    if alertView == @notLoggedInAlertView
+      @notLoggedInAlertView = nil
+    end
     close_up
   end
 
