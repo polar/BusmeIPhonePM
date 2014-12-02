@@ -57,7 +57,7 @@ class JourneySelectionScreen < PM::TableScreen
     loc = masterController.locationController.currentLocation
     if loc
       dist = Platform::GeoPathUtils.offPath(jd.route.getPath(0), loc)
-      if true || dist > 60
+      if dist > masterController.api.offRouteDistanceThreshold
         @distanceAlertView = BW::UIAlertView.default(
             :title => "Distance Too Far",
             :message => "You are currently #{dist} feet from the route. Do you want to post for this route",
@@ -77,8 +77,16 @@ class JourneySelectionScreen < PM::TableScreen
         else
           @notLoggedInAlertView = BW::UIAlertView.default(
                :title => "Not Logged In",
-               :message => "You are not currently logged in. Try again"
+               :message => "You are not currently logged in. Try again",
+               :buttons => ["OK"]
           )
+          @notLoggedInAlertView.show
+          3.seconds.later do
+            if @notLoggedInAlertView
+              @notLoggedInAlertView.dismissWithClickedButtonIndex(0, animated: true)
+              @notLoggedInAlertView = nil
+            end
+          end
           close_up
         end
       end
@@ -97,8 +105,16 @@ class JourneySelectionScreen < PM::TableScreen
         else
           @notLoggedInAlertView = BW::UIAlertView.default(
               :title => "Not Logged In",
-              :message => "You are not currently logged in. Try again"
+              :message => "You are not currently logged in. Try again",
+              :buttons => ["OK"]
           )
+          @notLoggedInAlertView.show
+          3.seconds.later do
+            if @notLoggedInAlertView
+              @notLoggedInAlertView.dismissWithClickedButtonIndex(0, animated: true)
+              @notLoggedInAlertView = nil
+            end
+          end
         end
       end
       @distanceAlertView = nil

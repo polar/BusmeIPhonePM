@@ -39,8 +39,11 @@ class MasterMainMenu < MenuScreen
             }, {
                 title:  "Passenger",
                 action: :report
-            }, {
+                         }, {
                 title:  "Stop",
+                action: :report
+            },{
+                title:  "Login",
                 action: :report
             }, {
                 title:  "Logout",
@@ -153,9 +156,44 @@ class MasterMainMenu < MenuScreen
       when "Stop"
         # TODO: Stop Reporting
         true
+      when "Login"
+        startLogin(screen, title)
       when "Logout"
-        # TODO: Logout
+        masterController.logout
         true
+    end
+  end
+
+  def startLogin(screen, title)
+    if mainController
+      if masterController = mainController.masterController
+        if api = mainController.masterController.api
+          if !(login = api.loggedIn?)
+            login            = Api::Login.new
+            login.roleIntent = :passenger
+            login.quiet      = false
+            login.loginTries = 0
+            loginManager     = LoginManager.new(api, login, screen)
+            eventData        = Platform::LoginEventData.new(loginManager)
+            login.loginState = Api::Login::LS_LOGIN
+            api.uiEvents.postEvent("LoginEvent", eventData)
+            false
+          else
+            @loggedInView = BW::UIAlertView.default(
+                :title   => "Already Logged In",
+                :message => "#{login.email} is alread logged in!"
+            )
+            @loggedInView.show
+            2.seconds.later do
+              if @loggedInView
+                @loggedInView.dismissWithClickedButtonIndex(0, animated: true)
+                @loggedInView = nil
+              end
+            end
+            true
+          end
+        end
+      end
     end
   end
 
@@ -174,7 +212,7 @@ class MasterMainMenu < MenuScreen
               eventData        = Platform::LoginEventData.new(loginManager)
               login.loginState = Api::Login::LS_LOGIN
               api.uiEvents.postEvent("LoginEvent", eventData)
-              true
+              false
             else
               if title == "Driver" && !login.roles.include?(:driver)
                 @notAuthorizedView = BW::UIAlertView.default(

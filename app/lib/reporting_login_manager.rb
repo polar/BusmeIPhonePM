@@ -1,7 +1,7 @@
 class ReportingLoginManager < Api::LoginManager
 
   def onScreen(screen)
-    if loginManager.roleIntent == :driver && !login.roles.include?(:driver)
+    if login.roleIntent == :driver && !login.roles.include?(:driver)
       @notAuthorizedView = BW::AlertView.new(
           :title => "Not Authorized",
           :message => "You are not authorized as a driver, you are posting as a passenger")
@@ -25,7 +25,7 @@ class ReportingLoginManager < Api::LoginManager
     screen.journeySelectionScreen.masterController = masterController
     screen.journeySelectionScreen.location         = masterController.locationController.currentLocation
 
-    journeys = journeySelectionScreen.journeys
+    journeys = screen.journeySelectionScreen.journeys
 
     if journeys.empty?
       alertView = BW::UIAlertView.new(:title => "No suitable journeys",

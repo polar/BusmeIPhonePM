@@ -41,6 +41,7 @@ class MasterMapScreen < ProMotion::MapScreen
   attr_accessor :fgMarkerPresentationEventController
   attr_accessor :fgMasterMessagePresentationEventController
   attr_accessor :fgLoginController
+  attr_accessor :fgJourneyEventController
 
   attr_accessor :journeySelectionScreen
 
@@ -91,6 +92,7 @@ class MasterMapScreen < ProMotion::MapScreen
     self.fgMarkerPresentationEventController = FGMarkerPresentationEventController.new(masterController.api, self)
     self.fgMasterMessagePresentationEventController = FGMasterMessagePresentationEventController.new(masterController.api, self)
     self.fgLoginController = LoginForeground.new(masterController.api, self)
+    self.fgJourneyEventController = FGJourneyEventController.new(masterController.api, self)
 
     self.routes_view = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
     view.addSubview(routes_view.view)
@@ -322,6 +324,11 @@ class MasterMapScreen < ProMotion::MapScreen
     if eventData.loginManager.is_a?(ReportingLoginManager)
       if eventData.loginManager.login.loginState == Api::Login::LS_LOGGED_IN
         eventData.loginManager.onScreen(self)
+      end
+    elsif eventData.loginManager.is_a?(LoginManager)
+      case eventData.loginManager.login.loginState
+        when Api::Login::LS_LOGGED_IN, Api::Login::LS_LOGGED_OUT
+          eventData.loginManager.close_up
       end
     end
   end
