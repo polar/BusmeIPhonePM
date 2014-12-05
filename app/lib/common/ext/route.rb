@@ -7,9 +7,3 @@ Api::Route.class_eval do
     @journeyStore = WeakRef.new(js)
   end
 end
-
-Platform::XMLExternalStorageController.class_eval do
-  def masterController=(mc)
-    @masterController = WeakRef.new(mc)
-  end
-end

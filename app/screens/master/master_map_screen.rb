@@ -1,41 +1,10 @@
-class TabButton < UIButton
-
-  def routes_view=(rv)
-    @routes_view = WeakRef.new(rv)
-  end
-
-  def setup
-   #puts "VIEWDID LOAD     TAB BUTTON"
-    setImage( UIImage.imageNamed("tab_left.png"), forState: :normal.uistate)
-    setImage( UIImage.imageNamed("tab_left_pressed.png"), forState: :selected.uistate)
-    self.size = [64, 61]
-    self.alpha = 0
-    on(:touch) do
-     #puts "TAB BUTTON TOUCHED!"
-      @routes_view.slide_in
-    end
-  end
-
-  def slide_out
-    @view_origin = origin
-    animate(1.0) { self.alpha=0; self.origin = [self.origin.x + self.origin.x + self.size.width + 10, self.origin.y]}
-    @view_is_out = true
-  end
-
-  def slide_in
-    animate(1.0) { self.alpha=1; self.origin = @view_origin}
-    @view_is_out = false
-  end
-
-
-end
 
 class MasterMapScreen < ProMotion::MapScreen
   include Platform::JourneySyncProgressEventDataConstants
   include Api::UpdateProgressConstants
 
   attr_accessor :masterController
-  attr_accessor :routes_view
+  attr_accessor :routesView
   attr_accessor :tabButton
   attr_accessor :fgBannerPresentationEventController
   attr_accessor :fgMarkerPresentationEventController
@@ -54,10 +23,30 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def self.newScreen(args)
-   #puts "Initialize Busme Screen"
     s = self.new(args)
     s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
+    s.after_init
     s
+  end
+
+  def after_init
+    initializeTouches
+  end
+
+  def initializeTouches
+    map.on_tap do |args|
+      PM.logger.info "#{self.class.name}:on_tap #{args.inspect}"
+      true
+    end
+    map.on_tap(taps: 2, fingers: 2) do |args|
+      PM.logger.info "#{self.class.name}:on_tap(2,2) #{args.inspect}"
+      move_to_user_location
+      true
+    end
+    map.on_press do |args|
+      PM.logger.info "#{self.class.name}:on_press #{args.inspect}"
+      true
+    end
   end
 
   def will_appear
@@ -70,12 +59,12 @@ class MasterMapScreen < ProMotion::MapScreen
   def motionEnded(motion, withEvent:event)
     if (motion == UIEventSubtypeMotionShake)
      #puts "Shake detected"
-      routes_view.toggle_slide
+      routesView.toggle_slide
     end
   end
 
   ##
-  # We nullify this effect as we are managing our own annotations
+  # We nullify this effect as we are managing our own annotations without ProMotion::MapScreen
   #
   def update_annotation_data
 
@@ -84,6 +73,7 @@ class MasterMapScreen < ProMotion::MapScreen
   def annotation_data
     []
   end
+
   attr_accessor :deviceLocationAnnotation
   attr_accessor :tabButton
 
@@ -100,9 +90,9 @@ class MasterMapScreen < ProMotion::MapScreen
     masterController.api.uiEvents.registerForEvent("LoginEvent", self)
     setMaster(masterController.master)
     initNavBarActivityItem
-    initActivityDialog(masterController.master)
+    initSyncDialog(masterController.master)
     # We just start it because it will be a forced Sync anyway.
-    alertView.show
+    syncDialog.show
 
     # We need to hold a reference so it doesn't go away.
     self.fgBannerPresentationEventController = FGBannerPresentationEventController.new(masterController.api, self)
@@ -111,26 +101,44 @@ class MasterMapScreen < ProMotion::MapScreen
     self.fgLoginController = LoginForeground.new(masterController.api, self)
     self.fgJourneyEventController = FGJourneyEventController.new(masterController.api, self)
 
-    if self.routes_view
-      routes_view.view.removeFromSuperview
+    if self.routesView
+      routesView.view.removeFromSuperview
     end
     if self.tabButton
       tabButton.removeFromSuperview
     end
-    self.routes_view = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
-    view.addSubview(routes_view.view)
+    self.routesView = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
+    view.addSubview(routesView.view)
 
     self.tabButton = TabButton.custom
     view.addSubview(tabButton)
-    tabButton.routes_view = routes_view
-    routes_view.tabButton = tabButton
-    routes_view.viewWillAppear(false)
+    tabButton.routesView = routesView
+    routesView.tabButton = tabButton
+    routesView.viewWillAppear(false)
     view.setAutoresizesSubviews(false)
     #routes_view.view.setAutoresizingMask UIViewAutoresizingFlexibleLeftMargin
   end
 
+  def setCenterAndZoom(master = self.master)
+    bs = master.bbox.map {|x| (x * 1E6).to_i} # W, N, E, S
+    bbox = Integration::BoundingBoxE6.new(bs[1],bs[2],bs[3],bs[0]) # N, E, S, W
+    #puts "Center master #{master.slug} on #{bbox}"
+    center = bbox.getCenter
+    # TODO: Expand Just a bit so that the ends aren't at the edge of the screen
+    centerCoord = CLLocationCoordinate2D.new(center.latitude, center.longitude)
+    span = MKCoordinateSpanMake(bbox.north - bbox.south, bbox.east - bbox.west)
+    region = MKCoordinateRegionMake(centerCoord, span)
+    map.setRegion(region, animated: true)
+  end
+
+  def setMaster(master)
+    overlay = MasterOverlay.new(masterController: masterController, master: master)
+    map.addOverlay(overlay)
+    setCenterAndZoom(master)
+  end
+
   def move_to_user_location
-    loc = user_location
+    loc = user_location || (deviceLocationAnnotation && deviceLocationAnnotation.location)
     if loc
       self.center = { :longitude => loc.longitude, :latitude => loc.latitude, :animated => true}
     end
@@ -138,7 +146,7 @@ class MasterMapScreen < ProMotion::MapScreen
 
   def resizeIt
    #puts "RESIZE IT!"
-    routes_view.resizeAll
+    routesView.resizeAll
   end
 
   attr_accessor :activityIndicator
@@ -151,59 +159,47 @@ class MasterMapScreen < ProMotion::MapScreen
     set_nav_bar_button :left, :title => "Menu", :style => :plain, :action => :open_menu
   end
 
-  attr_accessor :alertView
+  attr_accessor :syncDialog
 
-  def initActivityDialog(master)
-    self.alertView = UIAlertView.alloc.initWithTitle("Welcome to #{master.title}",
+  def initSyncDialog(master)
+    self.syncDialog = UIAlertView.alloc.initWithTitle("Welcome to #{master.title}",
                                                 message: nil,
                                                 delegate:nil,
                                                 cancelButtonTitle: nil,
                                                 otherButtonTitles: nil)
     indicator = UIActivityIndicatorView.new
     indicator.startAnimating
-    alertView.setValue(indicator, forKey: "accessoryView")
-    alertView
+    syncDialog.setValue(indicator, forKey: "accessoryView")
+    syncDialog
   end
 
   def onSyncProgress(eventData)
-    #eventData.isForced = false
     case eventData.action
       when P_BEGIN
         @syncInProgress = true
-        alertView.show if eventData.isForced
-        alertView.message = "Contacting Server"
+        syncDialog.show if eventData.isForced
+        syncDialog.message = "Contacting Server"
         activityIndicator.startAnimating
       when P_SYNC_START
-       #puts "alertView.message : Syncing"
-        alertView.message = "Syncing"
+        syncDialog.message = "Server Contacted"
       when P_SYNC_END
        # alertView.message = ""
       when P_ROUTE_START
-       #puts "alertView.message : Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
-        alertView.setMessage "Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
-       #puts "alertView.message : set"
+        syncDialog.setMessage "Getting #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
       when P_ROUTE_END
-       #puts "alertView.message : Eat shit mutherfucking aapple"
-       #alertView.setMessage "Eat shit mutherfucking aapple"
-       #puts "alertView.message : set  ^^^^^^^^^^^^^^^^^^^"
-       #puts "alertView.message : Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
-       alertView.setMessage "Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
-       #puts "alertView.message : set"
+       syncDialog.setMessage "Finished #{eventData.iRoute+1} of #{eventData.nRoutes} Routes"
       when P_IOERROR
-       #puts "alertView.message : IOERROR"
-       alertView.message = "IOERROR!!!"
-       alertView.dismissWithClickedButtonIndex(0, animated: true)
+       syncDialog.message = "Network Error"
+       syncDialog.dismissWithClickedButtonIndex(0, animated: true)
        UIAlertView.alert("Network Error", message: eventData.ioError)
       when P_DONE
-       #puts "alertView.message : DONE"
-       alertView.message = "Got #{eventData.nRoutes} Routes"
-       alertView.dismissWithClickedButtonIndex(0, animated: true)
+       syncDialog.message = "Got #{eventData.nRoutes} Routes"
+       syncDialog.dismissWithClickedButtonIndex(0, animated: true)
        @syncInProgress = false
        activityIndicator.stopAnimating if !@syncInProgress && !@updateInProgress
-       routes_view.update_table_data
+       routesView.update_table_data
       else
     end
-   #puts "Done JourneySyncProgress #{eventData.action}"
   end
 
   def onUpdateProgress(eventData)
@@ -214,7 +210,7 @@ class MasterMapScreen < ProMotion::MapScreen
       when U_FINISH
         @updateInProgress = false
         activityIndicator.stopAnimating if !@syncInProgress && !@updateInProgress
-        routes_view.update_table_data
+        routesView.update_table_data
     end
   end
 
@@ -224,7 +220,7 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def didReceiveMemoryWarning
-    puts "***************************  MAPSCREEN: MEMORY WARNING **********************************"
+    PM.logger.error "***************************  MAPSCREEN: MEMORY WARNING **********************************"
   end
 
   def onBuspassEvent(event)
@@ -235,10 +231,8 @@ class MasterMapScreen < ProMotion::MapScreen
       when "Master:Init:return"
         onMasterInitReturn(evd)
       when "JourneySyncProgress"
-       #puts "JourneySyncProgress: #{evd.action}"
         onSyncProgress(evd)
       when "UpdateProgress"
-       #puts "UpdateProgress: #{evd.action}"
         onUpdateProgress(evd)
       when "LocationUpdate"
         onLocationUpdate(evd)
@@ -254,25 +248,6 @@ class MasterMapScreen < ProMotion::MapScreen
       force = evd.data[:disposition] != :default
       doSync(force)
     end
-  end
-
-
-  def setCenterAndZoom(master = self.master)
-    bs = master.bbox.map {|x| (x * 1E6).to_i} # W, N, E, S
-    bbox = Integration::BoundingBoxE6.new(bs[1],bs[2],bs[3],bs[0]) # N, E, S, W
-   #puts "Center master #{master.slug} on #{bbox}"
-    center = bbox.getCenter
-    # TODO: Expand Just a bit so that the ends aren't at the edge of the screen
-    centerCoord = CLLocationCoordinate2D.new(center.latitude, center.longitude)
-    span = MKCoordinateSpanMake(bbox.north - bbox.south, bbox.east - bbox.west)
-    region = MKCoordinateRegionMake(centerCoord, span)
-    map.setRegion(region, animated: true)
-  end
-
-  def setMaster(master)
-    overlay = MasterOverlay.new(masterController: masterController, master: master)
-    map.addOverlay(overlay)
-    setCenterAndZoom(master)
   end
 
   def mapView(map_view, viewForOverlay: overlay)
@@ -355,65 +330,5 @@ class MasterMapScreen < ProMotion::MapScreen
           eventData.loginManager.close_up
       end
     end
-  end
-end
-
-class MarkerAnnotation
-  attr_accessor :markerInfo
-  attr_accessor :type
-
-  def initialize(markerInfo)
-    self.markerInfo = markerInfo
-    self.type = self.class.name
-  end
-
-  def coordinate
-    CLLocationCoordinate2DMake(markerInfo.point.latitude, markerInfo.point.longitude)
-  end
-
-  def title
-    markerInfo.title
-  end
-
-  def subtitle
-    nil
-  end
-end
-
-class MarkerAnnotationView <  MKAnnotationView
-
-  attr_reader :masterMapScreen
-
-  @@count = 0
-  def self.get(marker, masterMapScreen)
-    @@count += 1
-    PM.logger.info "MarkerAnnoationView.get #{marker.inspect} #{@@count}"
-    mv = self.alloc.initWithAnnotation(marker, reuseIdentifier:"Marker#{@@count}")
-    mv.setup(masterMapScreen)
-    mv
-  end
-
-  def markerInfo
-    annotation.markerInfo
-  end
-
-  def centerOffset
-    # The damn documentation says that positive values "move" down and to the right.
-    # and negative values "move" up and to the left. I guess that depends on your
-    # perspective. We need to move the view so that the coordinate is at the
-    # bottom left, which I would think means move the picture from its intended
-    # point up half the height and to the right half the width, i.e. negative, positive.
-    # So, I don't really know what the documentation's logical
-    # perspective is, but it's the opposite. And it still looks off.
-    point = CGPoint.new(self.size.width/2, 0 - self.size.height/2)
-    puts "MarkerEAnnotationView.centerOffset. #{self.size.inspect} offset #{point.inspect}"
-    point
-  end
-
-  attr_accessor :markerView
-  def setup(masterMapScreen)
-    self.markerView = UIMarker.markerWith(markerInfo, masterMapScreen)
-    self.size = markerView.size
-    markerView.add(self, :at => CGPoint.new(0,0))
   end
 end

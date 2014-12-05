@@ -19,6 +19,9 @@ Banner Message Processing (click thrus)
 
 Icon for RouteView Back Button
 
+Move to User Location by Tap on Screen
+  Done 05-12-2014 Couldn't override the zoom or intercept. So it must be done with
+  a double tap of two fingers at the moment.
 
 Reset Seen Messages, Seen Markers
   Don 04-12-2014

@@ -34,7 +34,7 @@ class BannerTimer
     PM.logger.warn "BannerTimer:  Banner Update!! #{masterController}"
     return unless masterController
     masterController.api.bgEvents.postEvent("Banner:roll", forced)
-    # In order to maintain the adding a removing of marker presentation components
+    # In order to maintain the adding a removing of marker presentation foreground
     # we do the adds/removes, and roll on the single threaded background thread.
     # The roll will post UI Events to present and abandon markers.
     masterController.api.bgEvents.postEvent("Marker:roll", forced)
