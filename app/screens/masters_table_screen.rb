@@ -73,10 +73,14 @@ class MastersTableScreen < PM::TableScreen
       master = args[:master]
       if master
         masterApi = IPhone::Api.new(master)
+        App.delegate.switchToMasterScreen
+        alertView = App.delegate.showMasterDialog(master)
         eventData = Platform::MasterEventData.new(
+            :uiData => alertView,
             :data => { :master => master, :masterApi => masterApi}
         )
         mainController.bgEvents.postEvent("Main:Master:init", eventData)
+        self.close
       else
         @selecting = false
       end

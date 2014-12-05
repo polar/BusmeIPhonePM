@@ -121,8 +121,10 @@ class RoutesView < PM::TableScreen
   end
 
   def will_appear
-   #puts "RoutesView will appear #{view.superview}"
-   #puts "RoutesView will bounds #{view.superview.bounds.inspect}"
+    return if view.superview.nil?
+
+   PM.logger.info "RoutesView will appear #{view.superview}"
+   PM.logger.info "RoutesView will bounds #{view.superview.bounds.inspect}"
    #puts "RoutesView will frame #{view.superview.frame.inspect}"
     @super_frames ||= {}
     if @original_device_orientation.nil?
@@ -142,6 +144,8 @@ class RoutesView < PM::TableScreen
     view.rowHeight = 48.0
     tabButton.setup
     resizeAll
+  rescue Exception => boom
+    PM.logger.error "#{self.class.name}:#{__method__} #{boom}"
   end
 
   def on_init

@@ -5,6 +5,7 @@ class Discover1Screen < ProMotion::MapScreen
   attr_accessor :mainController
   attr_accessor :menu
   attr_accessor :routes_view
+  attr_accessor :splashView
 
   attr_accessor :discoverInProgress
 
@@ -15,8 +16,20 @@ class Discover1Screen < ProMotion::MapScreen
    #puts "Initialize Discover1 Screen #{mainController}"
     s = self.new(args)
     s.mainController = mainController
+    s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
     s.after_init
     s
+  end
+
+  def will_appear
+    if splashView
+      splashView.onView(view)
+      self.splashView = nil
+    end
+  end
+
+  def open?
+    nav_bar? && navigation_controller.visibleViewController == self
   end
 
   def annotation_data
@@ -96,10 +109,19 @@ class Discover1Screen < ProMotion::MapScreen
     alertView.show
     alertView
   end
+  def searchDialog(title, message)
+    alertView = BW::UIAlertView.default(:title => title, :message => message)
+    alertView.show
+    alertView
+  end
 
-  def performDiscoverFromLoc(loc, buf = nil)
-    if !discoverInProgress
-      self.discoverInProgress = true
+  def performDiscoverFromLoc(showDialog, loc, buf = nil)
+    self.discoverInProgress = true
+      if showDialog
+        dialog = searchDialog(
+            "Searching...",
+            "Searching near location #{'%0.6f' % loc.longitude}, #{'%0.6f' % loc.latitude}")
+      end
 
       if buf.nil?
         mapRegion = map.region
@@ -107,12 +129,14 @@ class Discover1Screen < ProMotion::MapScreen
       end
 
       mainController.bgEvents.postEvent("Search:discover",
-                                        Platform::DiscoverEventData.new(data: {lon: loc.longitude, lat: loc.latitude, buf: buf}))
-    end
+                                        Platform::DiscoverEventData.new(
+                                            uiData: dialog,
+                                            data: {lon: loc.longitude, lat: loc.latitude, buf: buf}))
   end
 
   def performDiscover(args)
     PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
+    # We need this because multiple finger clicks arrive.
     if !discoverInProgress
       self.discoverInProgress = true
 
@@ -123,18 +147,21 @@ class Discover1Screen < ProMotion::MapScreen
       mapRegion = map.region
       buf = mapRegion.span.latitudeDelta / Integration::GeoPoint::LAT_PER_FOOT
 
-      mainController.bgEvents.postEvent("Search:discover",
-          Platform::DiscoverEventData.new(data: {lon: loc.longitude, lat: loc.latitude, buf: buf}))
+      performDiscoverFromLoc(true, loc, buf)
     end
   end
 
   def onDiscover(event)
     PM.logger.info "#{self.class.name}#{__id__}:#{__method__}: discoverInProgress #{discoverInProgress}"
     evd = event.eventData
+    if evd.uiData && evd.uiData.is_a?(UIAlertView)
+      evd.uiData.dismissWithClickedButtonIndex(0, animated:true)
+    end
     if evd.error
       boom = evd.error
       if boom.is_a? Api::HTTPError
         errorDialog("Network Error", boom.statusLine, ErrorDialogDelegate.new(self))
+        # Error dialog will reset discoverInProgress
       end
     else
       masters = evd.return
@@ -164,7 +191,7 @@ class Discover1Screen < ProMotion::MapScreen
       master = evd.return
       if master
         masterApi = IPhone::Api.new(master)
-        mainController.bgEvents.postEvent("Main:Master:init",
+        mainController.uiEvents.postEvent("Main:Master:init",
                                           Platform::MasterEventData.new(data: {master: master, masterApi: masterApi}))
       elsif !discoverInProgress
         # Fire up a screen that will show the available masters.

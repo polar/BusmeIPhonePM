@@ -1,9 +1,6 @@
 Features That Need to be Implemented
 
-
-Login Processing
-
-Reporting/Posting needs to be implemented
+Selection Tap processing on Map Screen
 
 on AppDelegate:applicationDidEnterBackground:
    If we have reporting going on, keep it going.
@@ -15,7 +12,6 @@ Routes View needs indicator when there are no routes.
 
 Routes View needs to shrink to only available in the table screen.
 
-Busme Logo Splash Screen
 
 Master Message Processing (click thrus)
 
@@ -24,6 +20,17 @@ Banner Message Processing (click thrus)
 Icon for RouteView Back Button
 
 
+Reset Seen Messages, Seen Markers
+  Don 04-12-2014
+
+Busme Logo Splash Screen
+  Done 04-12-2014
+
+Login Processing
+  Done 02-12-2014
+
+Reporting/Posting needs to be implemented
+  Done 02-12-2014
 
 Marker Message Processing
   Done 26-11-2014

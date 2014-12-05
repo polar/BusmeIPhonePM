@@ -13,7 +13,7 @@ class MarkerMessageViewController < UIViewController
     self.view = UIAlertView.alloc.initWithTitle(markerInfo.title,
                                                      message: markerInfo.content,
                                                      delegate:self,
-                                                     cancelButtonTitle: "OK",
+                                                     cancelButtonTitle: "Cancel",
                                                      otherButtonTitles: nil)
     # Instead we set the other button titles after creation
     index = 1
@@ -22,9 +22,9 @@ class MarkerMessageViewController < UIViewController
       self.buttonIndexes[index] = :go
       index += 1
     end
-    if markerInfo.remindable
-      view.addButtonWithTitle("Remind Me Later")
-      self.buttonIndexes[index] = :remind
+    if true
+      view.addButtonWithTitle("Remove")
+      self.buttonIndexes[index] = :remove
       index += 1
     end
     self.buttonIndexes[index] = :cancel
@@ -46,7 +46,7 @@ class MarkerMessageViewController < UIViewController
             :url => markerInfo.goUrl,
             :nav_bar => true)
         masterMapScreen.open webScreen
-      when :remind
+      when :remove
         masterMapScreen.masterController.markerPresentationController.dismissMarker(markerInfo, true)
       when :cancel
     end

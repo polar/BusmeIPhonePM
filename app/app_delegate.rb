@@ -32,7 +32,14 @@ class AppDelegate < PM::Delegate
   attr_accessor :sem
   attr_accessor :menu
 
+  attr_accessor :splashScreen
+
+  def will_load(app, options = {})
+    AppDelegate.status_bar(false)
+  end
   def on_load(app, options = {})
+
+    self.splashScreen = SplashScreen.new(:nav_bar => false, :imageName => "Default-568h@2x.png")
 
     self.eventsController = IPhone::EventsController.new(delegate: self)
     begin
@@ -62,7 +69,7 @@ class AppDelegate < PM::Delegate
     mainController.uiEvents.registerForEvent("Main:Master:Init:return", self)
     mainController.uiEvents.registerForEvent("Search:Init:return", self)
 
-    mainController.bgEvents.postEvent("Main:init", Platform::MainEventData.new)
+    mainController.uiEvents.postEvent("Main:init", Platform::MainEventData.new)
 
     #puts "Device generatesOrientationNotifications #{UIDevice.currentDevice.generatesDeviceOrientationNotifications}"
     UIDevice.currentDevice.beginGeneratingDeviceOrientationNotifications
@@ -75,6 +82,7 @@ class AppDelegate < PM::Delegate
     p c.description
     NSLog("c.coordinate: #{c.coordinate}")
     p c.coordinate
+    open splashScreen
     self
   end
 
@@ -91,7 +99,7 @@ class AppDelegate < PM::Delegate
   end
 
   def showLookingDialog
-    alertView = UIAlertView.alloc.initWithTitle("Looking For Bus Server",
+    alertView = UIAlertView.alloc.initWithTitle("Contacting Bus Server",
                                                 message: nil,
                                                 delegate:nil,
                                                 cancelButtonTitle: nil,
@@ -147,7 +155,7 @@ class AppDelegate < PM::Delegate
       puts "RestartOnCancel: alertView will dismiss with #{buttonIndex}"
       puts "Going to post #{@eventName} in 5 seconds"
       5.seconds.later do
-        @app.mainController.bgEvents.postEvent(@eventName, @eventData)
+        @app.mainController.uiEvents.postEvent(@eventName, @eventData)
         @app.restartOnCancel = nil
         @app = nil
       end
@@ -316,6 +324,27 @@ class AppDelegate < PM::Delegate
     end
   end
 
+  def switchToMasterScreen
+    if splashScreen
+      splashScreen.close
+    end
+    if discoverScreen
+      discoverScreen.close
+    end
+    if busmeMapScreen.nil? && discoverScreen.nil?
+      PM.logger.warn "#{self.class.name}:#{__method__} Creating MapScreen"
+      self.busmeMapScreen =
+          MasterMapScreen.newScreen(nav_bar: true, :splash => splashScreen.imageName)
+    else
+      self.busmeMapScreen =
+          MasterMapScreen.newScreen(nav_bar: true)
+    end
+
+    PM.logger.warn "#{self.class.name}:#{__method__} opening MapScreen"
+    open(busmeMapScreen, :nav_bar => true)
+
+  end
+
   ##
   # This method gets called on a Main:Master:Init:return event.
   #
@@ -329,6 +358,9 @@ class AppDelegate < PM::Delegate
   #
   def onMainMasterInitReturn(event)
     evd = event.eventData
+    if evd.uiData && evd.uiData.is_a?(UIAlertView)
+      evd.uiData.dismissWithClickedButtonIndex(0, animated: true)
+    end
     if evd.error
       PM.logger.error "#{__method__}: Internal App Error: #{evd.error}"
     else
@@ -348,15 +380,13 @@ class AppDelegate < PM::Delegate
       # MasterController's first initial sync.
       masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
       masterController.api.uiEvents.registerForEvent("UpdateProgress", self)
+      switchToMasterScreen
 
-      alertView = showMasterDialog(masterController.master) if evd.data[:disposition] != :default
-      discoverScreen.close if discoverScreen
-      self.busmeMapScreen = MasterMapScreen.newScreen(masterController: masterController, nav_bar: true)
-      open busmeMapScreen
+      self.busmeMapScreen.initWithMasterController(masterController)
 
       # Fire off the event to initialize the master, the return will allow us to take down the dialog or handle
       # an error.
-      eventData = Platform::MasterEventData.new(:uiData => alertView, :data => {:disposition => :default})
+      eventData = Platform::MasterEventData.new(:uiData => evd.uiData, :data => {:disposition => :default})
       masterController.api.bgEvents.postEvent("Master:init", eventData)
 
       # We set up the timers for JourneySync and Update
@@ -368,6 +398,9 @@ class AppDelegate < PM::Delegate
       # We'll start the banners,message,marker timers right away.
       self.bannerTimer      = BannerTimer.new(masterController: masterController)
       bannerTimer.start
+      if discoverScreen
+        discoverScreen.close
+      end
     end
   end
 
@@ -384,7 +417,7 @@ class AppDelegate < PM::Delegate
       loc = configurator.getLastLocation
       if loc
         if discoverScreen
-          discoverScreen.performDiscoverFromLoc(loc)
+          discoverScreen.performDiscoverFromLoc(false, loc)
         end
       end
     end
@@ -407,6 +440,8 @@ class AppDelegate < PM::Delegate
   # This event signifies that the MainController was created and it has decided
   # whether we are going to open a Master or a Discover.
   #
+  attr_accessor :lookingForMasterDialog
+
   def onMainInitReturn(event)
     evd = event.eventData
     if evd.error
@@ -416,7 +451,9 @@ class AppDelegate < PM::Delegate
         master = evd.data[:master]
         if master
           masterApi = IPhone::Api.new(master)
+          self.lookingForMasterDialog = showMasterDialog(master)
           eventData = Platform::MasterEventData.new(
+              :uiData => lookingForMasterDialog,
               :data => {
                   :master    => master,
                   :masterApi => masterApi,
@@ -424,6 +461,7 @@ class AppDelegate < PM::Delegate
               },
           )
           mainController.bgEvents.postEvent("Main:Master:init", eventData)
+          switchToMasterScreen
         else
           PM.logger.error "#{__method__}: Return 'defaultMaster' does not contain a master."
           createDiscoverScreen(false)
@@ -435,11 +473,15 @@ class AppDelegate < PM::Delegate
   end
 
   def createDiscoverScreen(showDialog)
-    if discoverScreen
-      discoverScreen.clear
-      discoverScreen.mainController = mainController
+    if discoverScreen.nil? && busmeMapScreen.nil? && splashScreen
+      self.discoverScreen =
+          Discover1Screen.newScreen(mainController: mainController,
+                                    nav_bar: true,
+                                    splash: splashScreen.imageName)
     else
-      self.discoverScreen = Discover1Screen.newScreen(mainController: mainController, nav_bar: true)
+      self.discoverScreen =
+          Discover1Screen.newScreen(mainController: mainController,
+                                    nav_bar: true)
     end
     self.discoverApi    = IPhone::DiscoverApi.new(DISCOVER_URL)
     alertView           = showLookingDialog if showDialog
@@ -459,22 +501,12 @@ class AppDelegate < PM::Delegate
   #  Main:Discover:init => MainController
   #
   def onMainSelect(event)
-    alertView = showLookingDialog
     if busmeMapScreen
       busmeMapScreen.close
       saveMaster(false)
     end
     killTimers
-    mainController.bgEvents.postEvent("Main:Discover:init",
-                                      Platform::DiscoverEventData.new(
-                                          uiData: alertView,
-                                          data:   {discoverApi: discoverApi}))
-    if discoverScreen
-      discoverScreen.clear
-    else
-      createDiscoverScreen(true)
-    end
-    open discoverScreen
+    createDiscoverScreen(true)
   end
 
   def stopTimers
@@ -510,7 +542,9 @@ class AppDelegate < PM::Delegate
     if mainController
       masterC = mainController.masterController
       if masterC
-        masterC.storeMaster
+        evd = Platform::MasterEventData.new
+        evd.data = { :masterController => masterC }
+        masterC.api.bgEvents.postEvent("Master:store", evd)
         if asDefault
           PM.logger.info "Setting default Master to #{masterC.master.name}"
           configurator.setDefaultMaster(masterC.master)

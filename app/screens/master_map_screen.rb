@@ -45,13 +45,26 @@ class MasterMapScreen < ProMotion::MapScreen
 
   attr_accessor :journeySelectionScreen
 
+  attr_accessor :splashView
+
+  title "Busme!"
+
+  def open?
+    nav_bar? && navigation_controller.visibleViewController == self
+  end
+
   def self.newScreen(args)
    #puts "Initialize Busme Screen"
-    masterController = args.delete :masterController
     s = self.new(args)
-    s.masterController = masterController
-    s.after_init
+    s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
     s
+  end
+
+  def will_appear
+    if splashView
+      splashView.onView(view)
+      self.splashView = nil
+    end
   end
 
   def motionEnded(motion, withEvent:event)
@@ -72,8 +85,10 @@ class MasterMapScreen < ProMotion::MapScreen
     []
   end
   attr_accessor :deviceLocationAnnotation
+  attr_accessor :tabButton
 
-  def after_init
+  def initWithMasterController(masterController)
+    self.masterController = masterController
     PM.logger.warn "MasterMapScreen:after_init: #{masterController.master.to_s}"
     self.title = masterController.master.title
     masterController.api.uiEvents.registerForEvent("Master:Init:return", self)
@@ -86,6 +101,8 @@ class MasterMapScreen < ProMotion::MapScreen
     setMaster(masterController.master)
     initNavBarActivityItem
     initActivityDialog(masterController.master)
+    # We just start it because it will be a forced Sync anyway.
+    alertView.show
 
     # We need to hold a reference so it doesn't go away.
     self.fgBannerPresentationEventController = FGBannerPresentationEventController.new(masterController.api, self)
@@ -94,10 +111,16 @@ class MasterMapScreen < ProMotion::MapScreen
     self.fgLoginController = LoginForeground.new(masterController.api, self)
     self.fgJourneyEventController = FGJourneyEventController.new(masterController.api, self)
 
+    if self.routes_view
+      routes_view.view.removeFromSuperview
+    end
+    if self.tabButton
+      tabButton.removeFromSuperview
+    end
     self.routes_view = RoutesView.newView(:masterController => masterController, :masterMapScreen => self)
     view.addSubview(routes_view.view)
 
-    tabButton = TabButton.custom
+    self.tabButton = TabButton.custom
     view.addSubview(tabButton)
     tabButton.routes_view = routes_view
     routes_view.tabButton = tabButton
@@ -173,10 +196,11 @@ class MasterMapScreen < ProMotion::MapScreen
        UIAlertView.alert("Network Error", message: eventData.ioError)
       when P_DONE
        #puts "alertView.message : DONE"
-       alertView.message = "DONE"
+       alertView.message = "Got #{eventData.nRoutes} Routes"
        alertView.dismissWithClickedButtonIndex(0, animated: true)
        @syncInProgress = false
        activityIndicator.stopAnimating if !@syncInProgress && !@updateInProgress
+       routes_view.update_table_data
       else
     end
    #puts "Done JourneySyncProgress #{eventData.action}"
@@ -283,7 +307,7 @@ class MasterMapScreen < ProMotion::MapScreen
 
   def removeMarker(marker)
     @promotion_annotation_data.each do |annotation|
-      if annotation.is_a?(MarkerAnnotationView) && annotation.markerInfo.id = marker.id
+      if annotation.is_a?(MarkerAnnotation) && annotation.markerInfo.id = marker.id
         self.view.removeAnnotation(annotation)
       end
     end

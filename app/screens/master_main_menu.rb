@@ -63,7 +63,7 @@ class MasterMainMenu < MenuScreen
                        title:  "Set as Default",
                        action: :busme
                    }, {
-                       title:  "Remove As Default",
+                       title:  "Remove Default",
                        action: :busme
                    }]
     }
@@ -124,6 +124,12 @@ class MasterMainMenu < MenuScreen
         :title => "Reload",
         :menu  => [{
                        :title  => "Reload All",
+                       :action => :reload
+                   }, {
+                       :title  => "Reset Seen Markers",
+                       :action => :reload
+                   }, {
+                       :title  => "Reset Seen Messages",
                        :action => :reload
                    }
         ]
@@ -283,11 +289,12 @@ class MasterMainMenu < MenuScreen
             BW::App.alert("Done", :message => "#{masterController.master.name} is now your default transit system")
           end
         end
-      when "Remove As Default"
+      when "Remove Default"
         if mainController
-          mainController.busmeConfigurator.removeDefaultMaster
-          if masterController
-            BW::App.alert("Done", :message => "#{masterController.master.name} is no longer your default transit system")
+          master = mainController.busmeConfigurator.getDefaultMaster
+          if master
+            mainController.busmeConfigurator.removeDefaultMaster
+            BW::App.alert("Done", :message => "#{master.name} is no longer your default transit system")
           else
             BW::App.alert("Done", :message => "You now have no default transit system")
           end
@@ -347,6 +354,10 @@ class MasterMainMenu < MenuScreen
         masterController.api.bgEvents.postEvent("Master:reload")
         evd = Platform::JourneySyncEventData.new(isForced: true)
         masterController.api.bgEvents.postEvent("JourneySync", evd)
+      when "Reset Seen Markers"
+        masterController.api.bgEvents.postEvent("Master:resetSeenMarkers")
+      when "Reset Seen Messages"
+        masterController.api.bgEvents.postEvent("Master:resetSeenMessages")
     end
     true
   end

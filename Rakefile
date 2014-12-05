@@ -4,9 +4,6 @@ require 'motion/project/template/ios'
 require 'motion-cocoapods'
 require "rubygems"
 require 'bundler'
-#require "motion-yaml"
-#require "motion-bundler"
-#require "json/pure"
 Bundler.require
 ENV['ARR_CYCLES_DISABLE'] ='1'
 Motion::Project::App.setup do |app|
@@ -18,6 +15,9 @@ Motion::Project::App.setup do |app|
     pod 'MMDrawerController'
     pod "RaptureXML", :git => "https://github.com/IvanRublev/RaptureXML.git"
   end
+
+  app.info_plist['UIStatusBarHidden'] = true
+
 end
 
 #puts "Doing Motion Builder Setup"
