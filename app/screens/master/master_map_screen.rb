@@ -43,8 +43,11 @@ class MasterMapScreen < ProMotion::MapScreen
       move_to_user_location
       true
     end
-    map.on_press do |args|
-      PM.logger.info "#{self.class.name}:on_press #{args.inspect}"
+    map.on_press_begin do |gesture|
+      cgPoint = gesture.locationInView(view)
+      coord = view.convertPoint(cgPoint, toCoordinateFromView: view)
+      PM.logger.info "#{self.class.name}:on_press_begin #{coord.inspect}"
+      onLocationSelected(coord)
       true
     end
   end
@@ -60,6 +63,17 @@ class MasterMapScreen < ProMotion::MapScreen
     if (motion == UIEventSubtypeMotionShake)
      #puts "Shake detected"
       routesView.toggle_slide
+    end
+  end
+
+  def onLocationSelected(coord)
+    if masterController
+      # coord is a Coordinate2D
+      # This needs a GeoPoint, but should still respond to longitude, latitude.
+      ret = masterController.journeyVisibilityController.onLocationSelected(coord, 60)
+      if ret
+        masterController.api.uiEvents.postEvent("VisibilityChanged")
+      end
     end
   end
 

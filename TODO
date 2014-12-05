@@ -1,7 +1,5 @@
 Features That Need to be Implemented
 
-Selection Tap processing on Map Screen
-
 on AppDelegate:applicationDidEnterBackground:
    If we have reporting going on, keep it going.
 
@@ -18,6 +16,10 @@ Master Message Processing (click thrus)
 Banner Message Processing (click thrus)
 
 Icon for RouteView Back Button
+
+
+Selection Tap processing on Map Screen
+   Done 05-12-2014  Using a Long Press
 
 Move to User Location by Tap on Screen
   Done 05-12-2014 Couldn't override the zoom or intercept. So it must be done with
