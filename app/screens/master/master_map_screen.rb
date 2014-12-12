@@ -34,7 +34,7 @@ class MasterMapScreen < ProMotion::MapScreen
   end
 
   def initializeTouches
-    map.on_tap do |args|
+    tap_recognizer = map.on_tap do |args|
       PM.logger.info "#{self.class.name}:on_tap #{args.inspect}"
       true
     end
@@ -43,13 +43,27 @@ class MasterMapScreen < ProMotion::MapScreen
       move_to_user_location
       true
     end
-    map.on_press_begin do |gesture|
+    press_recognizer = map.on_press_begin do |gesture|
       cgPoint = gesture.locationInView(view)
       coord = view.convertPoint(cgPoint, toCoordinateFromView: view)
       PM.logger.info "#{self.class.name}:on_press_begin #{coord.inspect}"
       onLocationSelected(coord)
       true
     end
+    tap_recognizer.delegate = self
+    press_recognizer.delegate = self
+  end
+
+  def gestureRecognizer(recognizer, shouldReceiveTouch: touch)
+    PM.logger.info "#{self.class.name}:#{__method__} #{touch.inspect}"
+    PM.logger.info "#{touch.view.inspect}"
+    PM.logger.info "View #{touch.locationInView(touch.view).inspect}"
+    PM.logger.info "MapView #{touch.locationInView(self.view).inspect}"
+    PM.logger.info "RoutesView #{touch.locationInView(routesView.view).inspect}"
+    PM.logger.info "Root View #{touch.locationInView(App.delegate.root.view).inspect}"
+    result = ! CGRectContainsPoint(routesView.frame, touch.locationInView(App.delegate.root.view))
+    PM.logger.info "Returns #{result}"
+    result
   end
 
   def will_appear
@@ -179,7 +193,7 @@ class MasterMapScreen < ProMotion::MapScreen
     self.syncDialog = UIAlertView.alloc.initWithTitle("Welcome to #{master.title}",
                                                 message: nil,
                                                 delegate:nil,
-                                                cancelButtonTitle: nil,
+                                                cancelButtonTitle: "Dismiss",
                                                 otherButtonTitles: nil)
     indicator = UIActivityIndicatorView.new
     indicator.startAnimating
@@ -191,8 +205,8 @@ class MasterMapScreen < ProMotion::MapScreen
     case eventData.action
       when P_BEGIN
         @syncInProgress = true
-        syncDialog.show if eventData.isForced
-        syncDialog.message = "Contacting Server"
+        syncDialog.show if !syncDialog.visible? && eventData.isForced
+        syncDialog.message = "Contacting Server #{eventData.isForced}"
         activityIndicator.startAnimating
       when P_SYNC_START
         syncDialog.message = "Server Contacted"
@@ -268,7 +282,7 @@ class MasterMapScreen < ProMotion::MapScreen
    #puts "View For Overlay!! #{overlay}"
     case overlay.class.name
       when "MasterOverlay"
-        MasterOverlayView.new(masterController: masterController, overlay: overlay, view: map_view)
+        MasterOverlayView1.new(masterController: masterController, overlay: overlay, view: map_view)
     end
   end
 

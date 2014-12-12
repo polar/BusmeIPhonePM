@@ -2,6 +2,7 @@ class MenuScreen < PM::TableScreen
   title "Menu"
   attr_accessor :parent
 
+
   def menu_data
     @menu_data
   end

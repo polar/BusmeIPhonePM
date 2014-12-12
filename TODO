@@ -1,5 +1,9 @@
 Features That Need to be Implemented
 
+iPhone 4s, need to scale splash correctly
+
+Top on RoutesView is not longer working. Getting stolen by the MapScreen
+
 on AppDelegate:applicationDidEnterBackground:
    If we have reporting going on, keep it going.
 
@@ -17,6 +21,10 @@ Banner Message Processing (click thrus)
 
 Icon for RouteView Back Button
 
+Top on RoutesView is not longer working. Getting stolen by the MapScreen
+   Better 06-12-2014 Still the bottom footer of the RoutesView still
+                     goes to the map. Looks like the RoutesView is bigger
+                     than it's frame?
 
 Selection Tap processing on Map Screen
    Done 05-12-2014  Using a Long Press

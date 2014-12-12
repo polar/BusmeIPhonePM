@@ -37,9 +37,22 @@ class AppDelegate < PM::Delegate
   def will_load(app, options = {})
     AppDelegate.status_bar(false)
   end
+
+  def splashImage
+    case UIScreen.mainScreen.bounds.size.height
+      when 568, 1136
+        "Default-568h@2x.png"
+      else
+        if UIScreen.mainScreen.bounds.size.height < 800
+          "Default@2x.png"
+        else
+          "Default.png"
+        end
+    end
+  end
   def on_load(app, options = {})
 
-    self.splashScreen = SplashScreen.new(:nav_bar => false, :imageName => "Default-568h@2x.png")
+    self.splashScreen = SplashScreen.new(:nav_bar => false, :imageName => splashImage)
 
     self.eventsController = IPhone::EventsController.new(delegate: self)
     begin

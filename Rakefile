@@ -5,10 +5,9 @@ require 'motion-cocoapods'
 require "rubygems"
 require 'bundler'
 Bundler.require
-ENV['ARR_CYCLES_DISABLE'] ='1'
+#ENV['ARR_CYCLES_DISABLE'] ='1'
 Motion::Project::App.setup do |app|
   # Use `rake config' to see complete project settings.
-  app.name = 'promotion-motion-kit'
   app.frameworks << 'CoreLocation'
   app.files_dependencies "app/lib/iphone/ext/string.rb" => ["app/app_delegate.rb"]
   app.pods do
@@ -17,6 +16,12 @@ Motion::Project::App.setup do |app|
   end
 
   app.info_plist['UIStatusBarHidden'] = true
+
+  app.name = 'Busme'
+  app.identifier = "com.adiron.busme"
+  app.codesign_certificate = "iOS Development: Polar Humenn (V3VBML9S5C)"
+  app.provisioning_profile = "/Users/Polar/src/Apple/Provisioning/NickLarissaGriff.mobileprovision"
+  app.deployment_target = "7.1"
 
 end
 

@@ -191,7 +191,7 @@ class Discover1Screen < ProMotion::MapScreen
       master = evd.return
       if master
         masterApi = IPhone::Api.new(master)
-        mainController.uiEvents.postEvent("Main:Master:init",
+        mainController.bgEvents.postEvent("Main:Master:init",
                                           Platform::MasterEventData.new(data: {master: master, masterApi: masterApi}))
       elsif !discoverInProgress
         # Fire up a screen that will show the available masters.

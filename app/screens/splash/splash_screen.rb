@@ -11,6 +11,8 @@ class SplashScreen < PM::Screen
   end
 
   def on_init
+    img = UIImage.imageNamed(imageName)
+    #PM.logger.error "Scaling Splash #{imageName} to #{img.size.inspect} to #{UIScreen.mainScreen.bounds.size.inspect}"
     self.image = UIImage.imageNamed(imageName).scale_to(UIScreen.mainScreen.bounds.size)
 
     self.imageView = UIImageView.alloc.initWithImage(image)
