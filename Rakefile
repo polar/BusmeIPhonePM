@@ -21,7 +21,7 @@ Motion::Project::App.setup do |app|
   app.identifier = "com.adiron.busme"
   app.codesign_certificate = "iOS Development: Polar Humenn (V3VBML9S5C)"
   app.provisioning_profile = "/Users/Polar/src/Apple/Provisioning/NickLarissaGriff.mobileprovision"
-  app.deployment_target = "7.1"
+  app.deployment_target = "7.0"
 
 end
 

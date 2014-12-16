@@ -26,8 +26,8 @@ class MasterOverlayView1 < MKOverlayView
     # a visual for disposition and reported. It may also place text on the screen as well
     # in conjunction with the locator.
     #
-    def placeJourneyLocator(journeyDisplay, location, direction, reported, disposition, context)
-      self.delegate.placeJourneyLocator(journeyDisplay, location, direction, reported, disposition, context)
+    def placeJourneyLocator(journeyDisplay, args, context)
+      self.delegate.placeJourneyLocator(journeyDisplay, args, context)
     end
   end
 
@@ -98,23 +98,51 @@ class MasterOverlayView1 < MKOverlayView
     attr_accessor :journeyDisplay
     attr_accessor :location
     attr_accessor :direction
-    attr_accessor :reported
+    attr_accessor :distance
+    attr_accessor :timeDiff
+    attr_accessor :isReported
+    attr_accessor :isReporting
+    attr_accessor :onRoute
     attr_accessor :disposition
+    attr_accessor :startMeasure
+    attr_accessor :iconType
     attr_accessor :icon
     attr_accessor :mapRect
-    def initialize(jd,l,dir,r,disp)
+    def initialize(jd,args)
       self.journeyDisplay = jd
-      self.location = l
-      self.direction = dir
-      self.reported = r
-      self.disposition = disp
-      case disposition
-        when Platform::Disposition::HIGHLIGHT
-          self.icon = ::Locator.new("red", reported).direction(direction)
-        when Platform::Disposition::TRACK
-          self.icon = ::Locator.new("green", reported).direction(direction)
-        else
-          self.icon = ::Locator.new("blue", reported).direction(direction)
+      self.location = args[:currentLocation]
+      self.direction = args[:currentDirection]
+      self.distance = args[:currentDistance]
+      self.timeDiff = args[:currentTimeDiff]
+      self.isReported = args[:isReported]
+      self.isReporting = args[:isReporting]
+      self.disposition = args[:disposition]
+      self.iconType = args[:iconType]
+      self.onRoute = args[:onRoute]
+      if isReporting
+        self.icon = ::Locator.getReporting("passenger").icon
+      else
+        case iconType
+          when Platform::IconType::NORMAL
+            case disposition
+              when Platform::Disposition::HIGHLIGHT
+                self.icon = ::Locator.getArrow("red", isReported).direction(direction)
+              when Platform::Disposition::TRACK
+                self.icon = ::Locator.getArrow("green", isReported).direction(direction)
+              else
+                self.icon = ::Locator.getArrow("blue", isReported).direction(direction)
+            end
+          when Platform::IconType::START
+            case disposition
+              when Platform::Disposition::HIGHLIGHT
+                self.icon = ::Locator.getStarting("red").direction(direction)
+              when Platform::Disposition::TRACK
+                self.icon = ::Locator.getStarting("green").direction(direction)
+              else
+                self.icon = ::Locator.getStarting("purple").direction(direction)
+            end
+          when Platform::IconType::TOO_EARLY
+        end
       end
     end
   end
@@ -134,8 +162,8 @@ class MasterOverlayView1 < MKOverlayView
   # a visual for disposition and reported. It may also place text on the screen as well
   # in conjunction with the locator.
   #
-  def placeJourneyLocator(journeyDisplay, location, direction, reported, disposition, context)
-    self.locators << LocatorView.new(journeyDisplay, location, direction, reported, disposition)
+  def placeJourneyLocator(journeyDisplay, args, context)
+    self.locators << LocatorView.new(journeyDisplay, args)
   end
 
   def drawMapRect(mapRect, zoomScale: zoomscale, inContext: context)
@@ -154,6 +182,10 @@ class MasterOverlayView1 < MKOverlayView
     lastNumberOfPathsVisible = 0
     drawn = {}
     patterns.each do |p|
+      if !p.is_a?(PatternView)
+        PM.logger.error "#{self.class.name}:#{__method__} WTF? Pattern is not a PatternView? #{p.inspect}"
+        next
+      end
       if p.pattern.isReady?
         if @mustDrawPaths || lastNumberOfPathsVisible < PATTERN_DRAWING_THRESHOLD
           if drawn[p].nil?
@@ -213,29 +245,34 @@ class MasterOverlayView1 < MKOverlayView
     mapPoint = MKMapPointForCoordinate(coord)
     cgPoint = pointForMapPoint(mapPoint)
     jd = locatorView.journeyDisplay
-    imageRect = drawBusArrow(cgPoint,
-                             locatorView.locator,
+    imageRect = drawLocatorIcon(cgPoint,
+                             locatorView.icon,
                              projection,
                              context)
-    recordLocator(jd, coord, mapRectForRect(imageRect))
+    mapRect = mapRectForRect(imageRect)
+    recordLocator(jd, locatorView, mapRect)
   end
 
   # Returns the imageRect it was drawn into.
-  def drawBusArrow(point, locator, projection, cgContext)
-    # puts "drawBusArrow at #{point.inspect} #{direction}"
-    scale = [0.5, (4-(19-projection.zoomLevel)/2)/4.0].max
-    icon = locator.scale_by(scale)
-    x = point.x - icon.hotspot.x/projection.zoomscale
-    y = point.y - icon.hotspot.y/projection.zoomscale
-    imageRect = CGRectMake(x, y, icon.image.size.width/projection.zoomscale, icon.image.size.height/projection.zoomscale)
-    # puts "drawBusArrow #{projection.zoomscale} at #{point.inspect} #{direction} into #{printRect imageRect} #{printmRect mapRectForRect(iageRect)}"
-    CGContextDrawImage(cgContext, imageRect, icon.image.cgimage)
-    imageRect
+  def drawLocatorIcon(point, locator, projection, cgContext)
+    scale        = [0.5, (4-(19-projection.zoomLevel)/2)/4.0].max
+    icon         = locator.scale_by(scale)
+    x            = point.x - icon.hotspot.x/projection.zoomscale
+    y            = point.y - icon.hotspot.y/projection.zoomscale
+    width        = icon.image.size.width/projection.zoomscale
+    height       = icon.image.size.height/projection.zoomscale
+    imageMapRect = CGRect.new([x, y], [width, height])
+    CGContextDrawImage(cgContext, imageMapRect, icon.image.cgimage)
+    imageMapRect
   end
 
   def recordLocator(journeyDisplay, locator, mapRect)
+    setNeedsDisplayInMapRect(mapRect)
+    self.previousLocators[journeyDisplay.route.id].tap do |loc|
+      setNeedsDisplayInMapRect(loc.mapRect) if loc
+    end
     locator.mapRect = mapRect
-    self.previousLocator[journeyDisplay.route.id] = locator
+    self.previousLocators[journeyDisplay.route.id] = locator
   end
 
   # Helper function to create a MapRect with the specified mapSize

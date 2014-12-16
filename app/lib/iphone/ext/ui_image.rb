@@ -14,4 +14,19 @@ UIImage.class_eval do
     end
 
   end
+
+  def opacity(alpha)
+    return self.canvas(size: self.size) do |ctx|
+      CGContextScaleCTM(ctx, 1, -1)
+      CGContextTranslateCTM(ctx, 0, -self.size.height)
+
+      CGContextSetBlendMode(ctx, CGBlendModeMultiply)
+
+      CGContextSetAlpha(ctx, alpha)
+
+      rect = CGRect.new([0,0],self.size)
+
+      CGContextDrawImage(ctx, rect, self.CGImage)
+    end
+  end
 end

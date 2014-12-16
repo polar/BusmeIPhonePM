@@ -139,7 +139,7 @@ class AppDelegate < PM::Delegate
   end
 
   def showMasterDialog(master)
-    alertView = UIAlertView.alloc.initWithTitle("Getting #{master.title}",
+    alertView = UIAlertView.alloc.initWithTitle("Contacting #{master.title}",
                                                 message: nil,
                                                 delegate:nil,
                                                 cancelButtonTitle: nil,
