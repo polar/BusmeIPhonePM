@@ -8,7 +8,7 @@ Utils::ScreenPathUtils.class_eval do
     out
   end
 
-  def self.toClippedScreenPath(projectedPath, projection)
+  def self.toClippedScreenPath1(projectedPath, projection)
 
     #puts "IPhone:toClippedScreenPath(#{projectedPath.length} points) on #{projection}"
     rect = projection.screenRect

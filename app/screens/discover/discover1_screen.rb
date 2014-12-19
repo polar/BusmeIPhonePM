@@ -40,9 +40,8 @@ class Discover1Screen < ProMotion::MapScreen
     if mainController
       mainController.uiEvents.unregisterForEvent("Search:Discover:return", self)
       mainController.uiEvents.unregisterForEvent("Search:Find:return", self)
-      mainController.release
     end
-    @mainController = WeakRef.new(mc)
+    @mainController = mc
     mainController.uiEvents.registerForEvent("Search:Discover:return", self)
     mainController.uiEvents.registerForEvent("Search:Find:return", self)
   end

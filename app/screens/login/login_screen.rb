@@ -70,6 +70,6 @@ class LoginScreen < PM::FormScreen
   end
 
   def on_disappear
-    parent_screen.close_up if parent_screen.is_a?(MenuScreen)
+    #parent_screen.close_up if parent_screen.is_a?(MenuScreen)
   end
 end

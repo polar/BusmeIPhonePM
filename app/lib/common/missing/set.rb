@@ -7,10 +7,10 @@ class Set
     # elsif a.is_a?(NSSet)
     #   self.nsset = NSMutableSet.alloc.initWithInitialCapacity(a.count)
     #   self.nsset.setSet(a)
-      PM.logger.error "creating #{self.inspect} #{self.nsset}"
-      PM.logger.error "creating #{self.inspect} #{self.nsset.count}"
+      #PM.logger.error "creating #{self.inspect} #{self.nsset}"
+      #PM.logger.error "creating #{self.inspect} #{self.nsset.count}"
     elsif a.is_a?(Set)
-      PM.logger.error "#{a.inspect} #{a.nsset}"
+      #PM.logger.error "#{a.inspect} #{a.nsset}"
       # TODO: FIx this iOS bug?
       # Horrible workaround
       # It seems that sometimes the count attribute disappears from a

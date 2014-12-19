@@ -47,4 +47,11 @@ class Locator
       loc.hotspot = CGPointMake(22, 30)
     end
   end
+
+  def self.getTooEarly(color)
+    @@icons["#{color}:TooEarly"] ||= Locator.new.tap do |loc|
+      loc.image = UIImage.imageNamed("#{color}_circle_icon.png")
+      loc.hotspot = CGPointMake(22, 30)
+    end
+  end
 end

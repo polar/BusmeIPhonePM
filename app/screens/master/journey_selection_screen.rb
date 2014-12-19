@@ -47,9 +47,10 @@ class JourneySelectionScreen < PM::TableScreen
 
   def close_up
     PM.logger.warn "#{self.class.name}:#{__method__} : #{parent.inspect}"
-    if parent.is_a?(MenuScreen)
-      parent.close_up
-    end
+    # if parent.is_a?(MenuScreen)
+    #   parent.close_up
+    # end
+    close({:to_screen => :root})
   end
 
   def hit(jd)

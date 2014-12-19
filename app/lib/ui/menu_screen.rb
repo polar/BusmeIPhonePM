@@ -116,8 +116,9 @@ class MenuScreen < PM::TableScreen
     # on the parent, when this window finally goes away. See on_disappear
     # call back.
     @closeUp = true
-    close # this call can be missed for some reason at the top of the chain.
-    parent.close_up if parent
+    #close # this call can be missed for some reason at the top of the chain.
+    #parent.close_up if parent
+    close({:to_screen => :root})
   end
 
   ##

@@ -27,6 +27,7 @@ class MasterOverlayView1 < MKOverlayView
     # in conjunction with the locator.
     #
     def placeJourneyLocator(journeyDisplay, args, context)
+      PM.logger.info "#{self.class.name}:#{__method__} #{journeyDisplay.route.name} #{args.inspect}"
       self.delegate.placeJourneyLocator(journeyDisplay, args, context)
     end
   end
@@ -40,15 +41,18 @@ class MasterOverlayView1 < MKOverlayView
     self.initWithOverlay(overlay)
     self.mapLayer = MyMapLayer.new(masterController.api, masterController.journeyVisibilityController, self)
     @mustDrawPaths = true
-    self.locators = []
-    self.patterns = []
-    self.previousLocators = {}
+    @locators = []
+    @patterns = []
+    @previousLocators = {}
     # puts "Creating MasterOverlayView for #{master.slug}"
     registerForEvents
+    @pathRetains = {}
   end
 
   def registerForEvents
     masterController.api.uiEvents.registerForEvent("VisibilityChanged", self)
+    masterController.api.uiEvents.registerForEvent("UpdateProgress", self)
+    masterController.api.uiEvents.registerForEvent("JourneySyncProgress", self)
     masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
     masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
     masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
@@ -57,14 +61,22 @@ class MasterOverlayView1 < MKOverlayView
   def onBuspassEvent(event)
     # puts "MasterOverlayView. Got event #{event.eventName}"
     case event.eventName
+      when "JourneySyncProgress"
+        if event.eventData.action == Platform::JourneySyncProgressEventData::P_DONE
+          reset
+          setNeedsDisplayInMapRect(overlay.boundingMapRect)
+        end
+      when "UpdateProgress"
+        if event.eventData.action == Platform::JourneySyncProgressEventData::P_DONE
+          resetLocators
+        end
       when "JourneyAdded", "JourneyRemoved"
-        journeyDisplay = event.eventData.journeyDisplay
-        rect = journeyDisplay.boundingMapRect
-        # Get rid of any location mapRect Data. It will get added in drawBusArrow
-        reset
-        setNeedsDisplayInMapRect(rect)
+        # journeyDisplay = event.eventData.journeyDisplay
+        # rect = journeyDisplay.boundingMapRect
+        # # Get rid of any location mapRect Data. It will get added in drawLocator
+        # reset
+        # setNeedsDisplayInMapRect(rect)
       when "JourneyLocationUpdate"
-        reset
       when "VisibilityChanged"
         reset
         setNeedsDisplayInMapRect(overlay.boundingMapRect)
@@ -92,6 +104,15 @@ class MasterOverlayView1 < MKOverlayView
           self.color = UIColor.blueColor.cgcolor(0.5)
       end
     end
+
+    def boundingMapRect
+      return @boundingMapRect if @boundingMapRect
+      nw = MKMapPointForCoordinate CLLocationCoordinate2D.new(pattern.rect.top, pattern.rect.right)
+      se = MKMapPointForCoordinate CLLocationCoordinate2D.new(pattern.rect.bottom, pattern.rect.left)
+      lonDelta = (nw.x - se.x).abs
+      latDelta = (nw.y - se.y).abs
+      @boundingMapRect = MKMapRectMake(nw.x, nw.y, lonDelta, latDelta)
+    end
   end
 
   class LocatorView
@@ -106,8 +127,10 @@ class MasterOverlayView1 < MKOverlayView
     attr_accessor :disposition
     attr_accessor :startMeasure
     attr_accessor :iconType
-    attr_accessor :icon
+    attr_writer   :icon
+    attr_accessor :projection
     attr_accessor :mapRect
+
     def initialize(jd,args)
       self.journeyDisplay = jd
       self.location = args[:currentLocation]
@@ -119,6 +142,11 @@ class MasterOverlayView1 < MKOverlayView
       self.disposition = args[:disposition]
       self.iconType = args[:iconType]
       self.onRoute = args[:onRoute]
+      self.projection = args[:projection]
+    end
+
+    def icon
+      return @icon if @icon
       if isReporting
         self.icon = ::Locator.getReporting("passenger").icon
       else
@@ -142,19 +170,28 @@ class MasterOverlayView1 < MKOverlayView
                 self.icon = ::Locator.getStarting("purple").direction(direction)
             end
           when Platform::IconType::TOO_EARLY
+            self.icon = ::Locator.getTooEarly("blue").icon
+          else
+            PM.logger.error "#{self.class.name}:#{__method__} Unknown IconType #{iconType}"
+            self.icon = ::Locator.getTooEarly("blue").icon
         end
       end
     end
   end
 
   def reset
-    self.patterns = []
-    self.locators = []
+    @patterns = []
+    @locators = []
     mapLayer.place(nil)
   end
 
+  def resetLocators
+    @locators = []
+    mapLayer.placeLocators(nil)
+  end
+
   def placePattern(pattern, disposition, context)
-    self.patterns << PatternView.new(pattern,disposition)
+    @patterns << PatternView.new(pattern,disposition)
   end
 
   ##
@@ -163,25 +200,30 @@ class MasterOverlayView1 < MKOverlayView
   # in conjunction with the locator.
   #
   def placeJourneyLocator(journeyDisplay, args, context)
-    self.locators << LocatorView.new(journeyDisplay, args)
+    @locators << LocatorView.new(journeyDisplay, args)
   end
 
   def drawMapRect(mapRect, zoomScale: zoomscale, inContext: context)
+    time_start = Time.now
     @count ||= 0
     thisCount = (@count += 1)
+    PM.logger.info "#{self.class.name}:#{__method__} #{thisCount} #{zoomscale} #{mapRect.inspect}"
     # puts ">>>> DrawRect #{thisCount} we have #{masterController.journeyDisplayController.getJourneyDisplays.size} JourneyDisplays"
     p = Projection.new(self, mapRect, zoomscale)
     drawPatterns(p, context)
     # We draw locators over the paths.
     drawLocators(p, context)
     # puts "<<<<< Exit DrawMapRect #{thisCount} at #{p}"
+    time_end = Time.now
+    PM.logger.info "#{self.class.name}:#{__method__} #{"%.3f" % (time_end - time_start)} secs"
   end
 
   def drawPatterns(projection, context)
     # puts "Should draw #{patterns.size} patterns"
     lastNumberOfPathsVisible = 0
+    lineWidth = MKRoadWidthAtZoomScale(projection.zoomscale)
     drawn = {}
-    patterns.each do |p|
+    @patterns.each do |p|
       if !p.is_a?(PatternView)
         PM.logger.error "#{self.class.name}:#{__method__} WTF? Pattern is not a PatternView? #{p.inspect}"
         next
@@ -189,9 +231,12 @@ class MasterOverlayView1 < MKOverlayView
       if p.pattern.isReady?
         if @mustDrawPaths || lastNumberOfPathsVisible < PATTERN_DRAWING_THRESHOLD
           if drawn[p].nil?
-            drawPattern(p, projection, context)
-            drawn[p] = true
-            lastNumberOfPathsVisible += 1
+            mapRect = MKMapRectInset(p.boundingMapRect, -lineWidth, -lineWidth)
+            if MKMapRectIntersectsRect(mapRect, projection.mapRect)
+              drawPattern(p, projection, context)
+              drawn[p] = true
+              lastNumberOfPathsVisible += 1
+            end
           end
         else
           break
@@ -201,28 +246,38 @@ class MasterOverlayView1 < MKOverlayView
   end
 
   def drawLocators(projection, context)
-    locators.each do |l|
+    @locators.each do |l|
       drawLocator(l, projection, context)
     end
   end
 
   def drawPattern(patternView, projection, context)
+    pathRetain = @pathRetains[Dispatch::Queue.current] ||= Integration::PathRetain.new(100)
+
     CGContextSaveGState(context)
-    CGContextSetLineWidth(context, 3.0/projection.zoomscale)
+    cgrect = rectForMapRect(projection.mapRect)
+    CGContextSetLineWidth(context, 2/projection.zoomscale)
+    CGContextSetStrokeColorWithColor(context, UIColor.redColor.cgcolor)
+    CGContextStrokeRect(context, CGRectInset(cgrect,1,1))
+    cgrect = rectForMapRect(patternView.boundingMapRect)
+    CGContextSetLineWidth(context, 2/projection.zoomscale)
+    CGContextSetStrokeColorWithColor(context, UIColor.greenColor.cgcolor)
+    CGContextStrokeRect(context, cgrect)
+    CGContextSetLineWidth(context, projection.lineWidth)
     CGContextSetStrokeColorWithColor(context, patternView.color)
 
     # puts "DrawPattern #{pattern.id} at #{projection}"
     projectedPath = patternView.pattern.projectedPath
     # Returns an Integration::Path that has a list of paths, which are arrays of Integration::Point
-    path = Utils::ScreenPathUtils.toClippedScreenPath(projectedPath, projection)
-    if path && path.paths
-      path.paths.each do |points|
-        if points.size > 1
+    Utils::ScreenPathUtils.toClippedScreenPath(projectedPath, projection, pathRetain)
+    if pathRetain.pathsCount > 0
+      pathRetain.onEach do |points, size|
+        if size > 1
           # puts "Path starts at #{points.first.inspect}"
           CGContextMoveToPoint(context, points.first.x, points.first.y)
-          points.drop(1).each do |point|
+          for i in 1..size-1 do
             #puts "AddLineToPoint(#{point})"
-            CGContextAddLineToPoint(context, point.x, point.y)
+            CGContextAddLineToPoint(context, points[i].x, points[i].y)
           end
           # puts "Path ends at #{points.last.inspect}"
         end
