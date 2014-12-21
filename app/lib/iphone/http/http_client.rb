@@ -5,52 +5,52 @@ puts "loading IPhone::Http:HttpClient"
 module IPhone
   module Http
     class HttpResponse
-      attr_accessor :result
       def initialize(result)
-        self.result = result
+        # We do this actively to get rid of memory.
+        @headers = result.operation.response.allHeaderFields.map {|k,v| Integration::Http::Header.new(k,v)}
+        @entity = Integration::Http::HttpEntity.new(RWrap.new(result))
+        if result.error
+          @status_line = Integration::Http::StatusLine.new(result.error.code, result.error.localizedDescription)
+        else
+          @status_line = Integration::Http::StatusLine.new(result.operation.response.statusCode, result.operation.responseString)
+        end
       end
       def getAllHeaders()
-        @headers ||= result.operation.headers.map {|k,v| Header.new(k,v)}
+        @headers
       end
       def getEntity()
-        @entity ||= Integration::Http::HttpEntity.new(RWrap.new(result))
+        @entity
       end
       def getStatusLine()
-        if result.error
-          @status_line ||= Integration::Http::StatusLine.new(result.error.code, result.error.localizedDescription)
-        else
-          @status_line ||= Integration::Http::StatusLine.new(result.operation.response.statusCode, result.operation.responseString)
-        end
+        @status_line
       end
     end
     class BWrap
       def initialize(body)
-        @body = body
+        @length = body.length
+        @content = body.to_s
       end
       def length
-        @body.length
+        @length
       end
       def content
-        @s = @body.to_s
+        @content
       end
     end
     class RWrap
       def initialize(response)
-        @resp = response
+        @body = BWrap.new(response.body)
       end
       def body
-        BWrap.new @resp.body
-      end
-      def headers
-        @resp.headers
+        @body
       end
     end
     class MockWrap
       def initialize(str)
-        @str = str
+        @body = BWrap.new(str)
       end
       def body
-        BWrap.new @str
+        @body
       end
       def headers
         []
@@ -89,6 +89,7 @@ module IPhone
         end
         @sem.wait
         result = @result
+        @result = nil
         @entry.signal
         result
       end
@@ -129,6 +130,7 @@ module IPhone
         end
         @sem.wait
         result = @result
+        @result = nil
         @entry.signal
         result
       end
@@ -164,6 +166,7 @@ module IPhone
         end
         @sem.wait
         result = @result
+        @result = nil
         @entry.signal
         result
       end
@@ -191,6 +194,7 @@ module IPhone
         end
         @sem.wait
         result = @result
+        @result = nil
         @entry.signal
         result
       end

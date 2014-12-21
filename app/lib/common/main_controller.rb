@@ -1,7 +1,7 @@
 class MasterController < Platform::MasterController
 
   def mainController=(mc)
-    @mainController = mc
+    @mainController = WeakRef.new(mc)
   end
 end
 

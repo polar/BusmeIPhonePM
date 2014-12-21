@@ -1,4 +1,4 @@
-class BusmeSiteView < MKOverlayView
+class BusmeSiteView < MKOverlayRenderer
 
   attr_accessor :site
   attr_accessor :view

@@ -16,12 +16,12 @@ class Discover1Screen < ProMotion::MapScreen
    #puts "Initialize Discover1 Screen #{mainController}"
     s = self.new(args)
     s.mainController = mainController
-    s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
+     #s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
     s.after_init
     s
   end
 
-  def will_appear
+  def did_appear
     if splashView
       splashView.onView(view)
       self.splashView = nil

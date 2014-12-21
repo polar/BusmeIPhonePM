@@ -99,12 +99,6 @@ class MenuScreen < PM::TableScreen
          cells: @table_cells }]
   end
 
-  def close
-    PM.logger.info "#{self.class.name}:#{__method__} #{title}"
-    super
-  end
-
-
   ##
   # Close up the Menu Screen heirarchy.
   #
@@ -119,18 +113,6 @@ class MenuScreen < PM::TableScreen
     #close # this call can be missed for some reason at the top of the chain.
     #parent.close_up if parent
     close({:to_screen => :root})
-  end
-
-  ##
-  # This is a call back for didDisappear
-  #
-  def on_disappear
-    # Because iOS seems to miss close commands up the heirarchy
-    # we trigger them on the window disappearing.
-    if @closeUp
-      parent.close_up if parent
-      @closeUp = false
-    end
   end
 
   def cancel

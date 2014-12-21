@@ -24,7 +24,7 @@ class MasterMapScreen < ProMotion::MapScreen
 
   def self.newScreen(args)
     s = self.new(args)
-    s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
+    #s.splashView = SplashView.new(:imageName => args[:splash], :screen => s) if args[:splash]
     s.after_init
     s
   end
@@ -70,6 +70,17 @@ class MasterMapScreen < ProMotion::MapScreen
     if splashView
       splashView.onView(view)
       self.splashView = nil
+    end
+    if masterOverlayView
+      masterOverlayView.doDraw = true
+      masterOverlayView.setRedraw
+    end
+  end
+
+  def will_disappear
+    PM.logger.info "Map Screen disappearing. #{masterController.master.name if masterController}"
+    if masterOverlayView
+      masterOverlayView.doDraw = false
     end
   end
 
@@ -278,11 +289,13 @@ class MasterMapScreen < ProMotion::MapScreen
     end
   end
 
+  attr_accessor :masterOverlayView
+
   def mapView(map_view, viewForOverlay: overlay)
    #puts "View For Overlay!! #{overlay}"
     case overlay.class.name
       when "MasterOverlay"
-        MasterOverlayView1.new(masterController: masterController, overlay: overlay, view: map_view)
+        self.masterOverlayView = MasterOverlayView1.new(masterController: masterController, overlay: overlay, view: map_view)
     end
   end
 

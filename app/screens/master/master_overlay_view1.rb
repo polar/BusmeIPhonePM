@@ -1,4 +1,4 @@
-class MasterOverlayView1 < MKOverlayView
+class MasterOverlayView1 < MKOverlayRenderer
   PATTERN_DRAWING_THRESHOLD = 10
 
   attr_accessor :master
@@ -9,6 +9,8 @@ class MasterOverlayView1 < MKOverlayView
   attr_accessor :patterns
   attr_accessor :locators
   attr_accessor :previousLocators
+
+  attr_accessor :doDraw
 
   class MyMapLayer < Platform::RoutesAndLocationsMapLayer
     attr_accessor :delegate
@@ -43,10 +45,15 @@ class MasterOverlayView1 < MKOverlayView
     @mustDrawPaths = true
     @locators = []
     @patterns = []
+    @locatorsStage = []
+    @patternsStage = []
     @previousLocators = {}
     # puts "Creating MasterOverlayView for #{master.slug}"
     registerForEvents
     @pathRetains = {}
+    @lock = Mutex.new
+    @writeLock = Mutex.new
+    self.doDraw = true
   end
 
   def registerForEvents
@@ -56,6 +63,15 @@ class MasterOverlayView1 < MKOverlayView
     masterController.api.uiEvents.registerForEvent("JourneyAdded", self)
     masterController.api.uiEvents.registerForEvent("JourneyRemoved", self)
     masterController.api.uiEvents.registerForEvent("JourneyLocationUpdate", self)
+  end
+
+  def unregisterForEvents
+    masterController.api.uiEvents.unregisterForEvent("VisibilityChanged")
+    masterController.api.uiEvents.unregisterForEvent("UpdateProgress")
+    masterController.api.uiEvents.unregisterForEvent("JourneySyncProgress")
+    masterController.api.uiEvents.unregisterForEvent("JourneyAdded")
+    masterController.api.uiEvents.unregisterForEvent("JourneyRemoved")
+    masterController.api.uiEvents.unregisterForEvent("JourneyLocationUpdate")
   end
 
   def onBuspassEvent(event)
@@ -97,7 +113,7 @@ class MasterOverlayView1 < MKOverlayView
       self.disposition = d
       case disposition
         when Platform::Disposition::HIGHLIGHT
-          self.color = UIColor.redColor.cgcolor(0.5)
+          self.color = UIColor.redColor.cgcolor(1.0)
         when Platform::Disposition::TRACK
           self.color = UIColor.greenColor.cgcolor(0.75)
         else
@@ -107,8 +123,8 @@ class MasterOverlayView1 < MKOverlayView
 
     def boundingMapRect
       return @boundingMapRect if @boundingMapRect
-      nw = MKMapPointForCoordinate CLLocationCoordinate2D.new(pattern.rect.top, pattern.rect.right)
-      se = MKMapPointForCoordinate CLLocationCoordinate2D.new(pattern.rect.bottom, pattern.rect.left)
+      nw = MKMapPointForCoordinate CLLocationCoordinate2D.new(pattern.rect.top, pattern.rect.left)
+      se = MKMapPointForCoordinate CLLocationCoordinate2D.new(pattern.rect.bottom, pattern.rect.right)
       lonDelta = (nw.x - se.x).abs
       latDelta = (nw.y - se.y).abs
       @boundingMapRect = MKMapRectMake(nw.x, nw.y, lonDelta, latDelta)
@@ -179,19 +195,34 @@ class MasterOverlayView1 < MKOverlayView
     end
   end
 
+  def setRedraw
+    setNeedsDisplayInMapRect(overlay.boundingMapRect)
+  end
+
   def reset
-    @patterns = []
-    @locators = []
-    mapLayer.place(nil)
+    @writeLock.synchronize do
+      @patternsStage = []
+      @locatorsStage = []
+      mapLayer.place(nil)
+      @lock.synchronize do
+        @patterns = @patternsStage
+        @locators = @locatorsStage
+      end
+    end
   end
 
   def resetLocators
-    @locators = []
-    mapLayer.placeLocators(nil)
+    @writeLock.synchronize do
+      @locatorsStage = []
+      mapLayer.placeLocators(nil)
+      @lock.synchronize do
+        @locators = @locatorsStage
+      end
+    end
   end
 
   def placePattern(pattern, disposition, context)
-    @patterns << PatternView.new(pattern,disposition)
+    @patternsStage << PatternView.new(pattern,disposition)
   end
 
   ##
@@ -200,33 +231,62 @@ class MasterOverlayView1 < MKOverlayView
   # in conjunction with the locator.
   #
   def placeJourneyLocator(journeyDisplay, args, context)
-    @locators << LocatorView.new(journeyDisplay, args)
+    @locatorsStage << LocatorView.new(journeyDisplay, args)
   end
 
   def drawMapRect(mapRect, zoomScale: zoomscale, inContext: context)
+    return unless doDraw
     time_start = Time.now
     @count ||= 0
     thisCount = (@count += 1)
-    PM.logger.info "#{self.class.name}:#{__method__} #{thisCount} #{zoomscale} #{mapRect.inspect}"
+    #PM.logger.info "#{self.class.name}:#{__method__} #{thisCount} #{zoomscale} #{mapRect.inspect}"
+
+    if true
+      CGContextSaveGState(context)
+      mp = MKMapRectInset(mapRect, 3.0/zoomscale, 3.0/zoomscale)
+      cgrect = rectForMapRect(mp)
+      PM.logger.info "#{self.class.name}:#{__method__} #{zoomscale} #{mapRect.inspect}"
+      PM.logger.info "#{self.class.name}:#{__method__} #{zoomscale} #{cgrect.inspect}"
+      CGContextSetLineWidth(context, 2.0/zoomscale)
+      CGContextSetStrokeColorWithColor(context, UIColor.redColor.cgcolor)
+      CGContextStrokeRect(context, cgrect)
+      CGContextRestoreGState(context)
+    end
+
     # puts ">>>> DrawRect #{thisCount} we have #{masterController.journeyDisplayController.getJourneyDisplays.size} JourneyDisplays"
     p = Projection.new(self, mapRect, zoomscale)
-    drawPatterns(p, context)
+
+    pats = []
+    locs = []
+    @lock.synchronize do
+      PM.logger.info "#{self.class.name}:#{__method__} patterns nil" if @patterns.nil?
+      pats = @patterns
+      PM.logger.info "#{self.class.name}:#{__method__} locators nil" if @locators.nil?
+      locs = @locators
+    end
+
+    drawPatterns(pats, p, context)
     # We draw locators over the paths.
-    drawLocators(p, context)
+    drawLocators(locs, p, context)
     # puts "<<<<< Exit DrawMapRect #{thisCount} at #{p}"
     time_end = Time.now
     PM.logger.info "#{self.class.name}:#{__method__} #{"%.3f" % (time_end - time_start)} secs"
   end
 
-  def drawPatterns(projection, context)
+  def drawPatterns(patterns, projection, context)
     # puts "Should draw #{patterns.size} patterns"
     lastNumberOfPathsVisible = 0
     lineWidth = MKRoadWidthAtZoomScale(projection.zoomscale)
     drawn = {}
-    @patterns.each do |p|
-      if !p.is_a?(PatternView)
+    unless patterns && patterns.is_a?(Array)
+      PM.logger.error "#{self.class.name}:#{__method__} WTF? patterns is not a list #{patterns.inspect}"
+      return
+    end
+    patterns.each do |p|
+      unless p && p.is_a?(PatternView)
         PM.logger.error "#{self.class.name}:#{__method__} WTF? Pattern is not a PatternView? #{p.inspect}"
-        next
+        # Were fucked
+        return
       end
       if p.pattern.isReady?
         if @mustDrawPaths || lastNumberOfPathsVisible < PATTERN_DRAWING_THRESHOLD
@@ -245,24 +305,37 @@ class MasterOverlayView1 < MKOverlayView
     end
   end
 
-  def drawLocators(projection, context)
-    @locators.each do |l|
-      drawLocator(l, projection, context)
+  def drawLocators(locators, projection, context)
+    # Rubymotion memory problems?
+    unless locators && locators.is_a?(Array)
+      PM.logger.error "#{self.class.name}:#{__method__} WTF? locators is not a list #{locators.inspect}"
+      return
+    end
+    locators.each do |l|
+      # Rubymotion memory problems?
+      if l && l.is_a?(LocatorView)
+        drawLocator(l, projection, context)
+      else
+        PM.logger.error "#{self.class.name}:#{__method__} WTF? locator is not a locator #{l.inspect}"
+        # We're fucked
+        return
+      end
     end
   end
 
   def drawPattern(patternView, projection, context)
-    pathRetain = @pathRetains[Dispatch::Queue.current] ||= Integration::PathRetain.new(100)
+    pathRetain = @pathRetains[Thread.current] ||= Integration::PathRetain.new(100)
+    pathRetain.reset
 
     CGContextSaveGState(context)
-    cgrect = rectForMapRect(projection.mapRect)
-    CGContextSetLineWidth(context, 2/projection.zoomscale)
-    CGContextSetStrokeColorWithColor(context, UIColor.redColor.cgcolor)
-    CGContextStrokeRect(context, CGRectInset(cgrect,1,1))
-    cgrect = rectForMapRect(patternView.boundingMapRect)
-    CGContextSetLineWidth(context, 2/projection.zoomscale)
-    CGContextSetStrokeColorWithColor(context, UIColor.greenColor.cgcolor)
-    CGContextStrokeRect(context, cgrect)
+
+    if false
+      cgrect = rectForMapRect(patternView.boundingMapRect)
+      CGContextSetLineWidth(context, 2.0/projection.zoomscale)
+      CGContextSetStrokeColorWithColor(context, UIColor.greenColor.cgcolor)
+      CGContextStrokeRect(context, cgrect)
+    end
+
     CGContextSetLineWidth(context, projection.lineWidth)
     CGContextSetStrokeColorWithColor(context, patternView.color)
 
@@ -310,7 +383,7 @@ class MasterOverlayView1 < MKOverlayView
 
   # Returns the imageRect it was drawn into.
   def drawLocatorIcon(point, locator, projection, cgContext)
-    scale        = [0.5, (4-(19-projection.zoomLevel)/2)/4.0].max
+    scale        = [1.0, (4-(19-projection.zoomLevel)/2)/2.0].max
     icon         = locator.scale_by(scale)
     x            = point.x - icon.hotspot.x/projection.zoomscale
     y            = point.y - icon.hotspot.y/projection.zoomscale

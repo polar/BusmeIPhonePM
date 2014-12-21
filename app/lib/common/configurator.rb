@@ -32,6 +32,7 @@ class Configurator < Platform::BusmeConfigurator
   end
 
   def getLastLocation
+    PM.logger.info "#{self.class.name}:#{__method__}"
     str = NSUserDefaults[:lastLocation]
     if str && !str.empty?
       loc = Api::Archiver.decode(str)
